@@ -134,8 +134,14 @@ async function sendReminder(guild, config, event, minutesUntil) {
 
     // Prepare message content with role mention if applicable
     let messageContent = '';
+    const eventType = event.event_type || 'holiday';
+    
     if (event.discord_role_id) {
+      // Meeting with specific role
       messageContent = `<@&${event.discord_role_id}>`;
+    } else if (eventType === 'holiday') {
+      // Holidays tag @everyone
+      messageContent = '@everyone';
     }
 
     const message = await channel.send({ 
@@ -243,8 +249,11 @@ async function sendSprintReminder(guild, config, sprint, type, minutesUntil) {
       embed.setColor(0xFF9900);
     }
 
-    await channel.send({ embeds: [embed] });
-    logger.info(`Sent sprint ${type} reminder for "${sprint.name}" in guild ${guild.id} (${timeText})`);
+    await channel.send({ 
+      content: '@everyone',
+      embeds: [embed] 
+    });
+    logger.info(`Sent sprint ${type} reminder for "${sprint.name}" in guild ${guild.id} (${timeText}) with @everyone mention`);
   } catch (error) {
     logger.error(`Failed to send sprint reminder for guild ${guild.id}:`, error);
   }
