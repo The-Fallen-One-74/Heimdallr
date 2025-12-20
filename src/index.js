@@ -1,5 +1,9 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Events } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
+const { Client, Collection, GatewayIntentBits } = require('discord.js');
+const logger = require('./utils/logger');
+const { initScheduler, stopScheduler } = require('./services/reminderScheduler');
 
 const client = new Client({
   intents: [
@@ -7,35 +11,77 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessageReactions,
   ],
 });
 
-client.once(Events.ClientReady, (readyClient) => {
-  console.log(`✓ Heimdallr is watching! Logged in as ${readyClient.user.tag}`);
-  console.log(`Watching over ${readyClient.guilds.cache.size} realm(s)`);
-});
+// Initialize commands collection
+client.commands = new Collection();
 
-client.on(Events.MessageCreate, (message) => {
-  if (message.author.bot) return;
-
-  if (message.content === '!ping') {
-    message.reply('Pong! Heimdallr sees all.');
+// Load commands recursively
+function loadCommands(dir) {
+  const files = fs.readdirSync(dir);
+  
+  for (const file of files) {
+    const filePath = path.join(dir, file);
+    const stat = fs.statSync(filePath);
+    
+    if (stat.isDirectory()) {
+      loadCommands(filePath);
+    } else if (file.endsWith('.js')) {
+      const command = require(filePath);
+      if ('data' in command && 'execute' in command) {
+        client.commands.set(command.data.name, command);
+        logger.info(`Loaded command: ${command.data.name}`);
+      } else {
+        logger.warn(`Command at ${filePath} is missing required "data" or "execute" property`);
+      }
+    }
   }
+}
 
-  if (message.content === '!about') {
-    message.reply(
-      'I am Heimdallr, guardian of the Bifrost and watcher of the nine realms. ' +
-      'I see and hear all that happens across the realms.'
-    );
+const commandsPath = path.join(__dirname, 'commands');
+loadCommands(commandsPath);
+
+// Load events
+const eventsPath = path.join(__dirname, 'events');
+const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+
+for (const file of eventFiles) {
+  const filePath = path.join(eventsPath, file);
+  const event = require(filePath);
+  if (event.once) {
+    client.once(event.name, (...args) => event.execute(...args));
+  } else {
+    client.on(event.name, (...args) => event.execute(...args));
   }
+  logger.info(`Loaded event: ${event.name}`);
+}
+
+// Initialize reminder scheduler after client is ready
+client.once('ready', () => {
+  initScheduler(client);
 });
 
-client.on(Events.GuildMemberAdd, (member) => {
-  console.log(`New member joined: ${member.user.tag}`);
+// Error handling
+process.on('unhandledRejection', error => {
+  logger.error('Unhandled promise rejection:', error);
 });
 
-client.on(Events.GuildMemberRemove, (member) => {
-  console.log(`Member left: ${member.user.tag}`);
+process.on('uncaughtException', error => {
+  logger.error('Uncaught exception:', error);
+  process.exit(1);
 });
 
-client.login(process.env.DISCORD_TOKEN);
+process.on('SIGINT', () => {
+  logger.info('Shutting down gracefully...');
+  stopScheduler();
+  client.destroy();
+  process.exit(0);
+});
+
+// Login
+client.login(process.env.DISCORD_TOKEN).catch(error => {
+  logger.error('Failed to login:', error);
+  process.exit(1);
+});
