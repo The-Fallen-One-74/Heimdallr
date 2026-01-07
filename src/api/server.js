@@ -54,9 +54,6 @@ function initApiServer(client) {
     next();
   };
 
-  // Apply authentication to all API routes
-  app.use('/api', authenticateApiKey);
-
   // Health check endpoint (no auth required)
   app.get('/health', (req, res) => {
     res.json({ 
@@ -67,11 +64,14 @@ function initApiServer(client) {
     });
   });
 
+  // Mount webhook routes BEFORE auth middleware (uses webhook secret instead)
+  app.use('/api/webhooks', createWebhookRouter(client));
+
+  // Apply authentication to Discord API routes only
+  app.use('/api/discord', authenticateApiKey);
+
   // Mount Discord API routes
   app.use('/api/discord', discordApi(client));
-
-  // Mount webhook routes (no API key auth, uses webhook secret instead)
-  app.use('/api/webhooks', createWebhookRouter(client));
 
   // 404 handler
   app.use((req, res) => {
