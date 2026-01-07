@@ -66,7 +66,11 @@ function initRealtimeListener(discordClient) {
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
+        console.log(`🔔 Realtime subscription status for guild ${guildId}: ${status}`);
+        if (err) {
+          console.error(`❌ Realtime subscription error for guild ${guildId}:`, err);
+        }
         if (status === 'SUBSCRIBED') {
           console.log(`✅ Realtime listener subscribed for guild ${guildId}`);
         } else if (status === 'CHANNEL_ERROR') {
