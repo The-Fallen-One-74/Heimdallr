@@ -20,9 +20,12 @@ function createWebhookRouter(client) {
     
     if (!secret || secret !== WEBHOOK_SECRET) {
       logger.warn(`Unauthorized webhook request from ${req.ip}`);
+      logger.warn(`Expected secret length: ${WEBHOOK_SECRET.length}, Received secret length: ${secret ? secret.length : 0}`);
+      logger.warn(`Secrets match: ${secret === WEBHOOK_SECRET}`);
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
+    logger.info('✅ Webhook authenticated successfully');
     next();
   };
 
