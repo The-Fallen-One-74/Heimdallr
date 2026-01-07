@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const logger = require('../utils/logger');
 const discordApi = require('./discordApi');
+const createWebhookRouter = require('./webhooks');
 
 /**
  * Initialize Express API server for Heimdallr
@@ -68,6 +69,9 @@ function initApiServer(client) {
 
   // Mount Discord API routes
   app.use('/api/discord', discordApi(client));
+
+  // Mount webhook routes (no API key auth, uses webhook secret instead)
+  app.use('/api/webhooks', createWebhookRouter(client));
 
   // 404 handler
   app.use((req, res) => {
