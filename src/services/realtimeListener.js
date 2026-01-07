@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { sendNotificationWithRetry } = require('./notificationService');
+const { getGuildConfig, getAllGuildConfigs } = require('./configManager');
 
 /**
  * Initialize Realtime listener for team_events table
@@ -7,82 +8,87 @@ const { sendNotificationWithRetry } = require('./notificationService');
  * @param {Discord.Client} discordClient - Discord bot client
  */
 function initRealtimeListener(discordClient) {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    console.error('❌ Missing Supabase credentials for Realtime listener');
-    return null;
-  }
-
-  console.log('🔔 Initializing Realtime listener for team_events...');
-
-  // Create Supabase client for Realtime
-  const supabase = createClient(supabaseUrl, supabaseKey, {
-    realtime: {
-      params: {
-        eventsPerSecond: 10
-      }
+  console.log('🔔 Initializing Realtime listeners for all configured guilds...');
+  
+  const guildConfigs = getAllGuildConfigs();
+  const cleanupFunctions = [];
+  
+  for (const [guildId, config] of Object.entries(guildConfigs)) {
+    if (!config.supabase_url || !config.supabase_service_role_key) {
+      console.warn(`⚠️  Guild ${guildId} missing Supabase credentials, skipping Realtime listener`);
+      continue;
     }
-  });
-
-  // Subscribe to INSERT events on team_events table
-  const channel = supabase
-    .channel('team_events_changes')
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'team_events'
-      },
-      async (payload) => {
-        console.log('📬 New team event received:', payload.new);
-        
-        const event = payload.new;
-        
-        // Skip if no Discord guild configured
-        if (!event.discord_guild_id) {
-          console.log('⏭️  Skipping event without discord_guild_id');
-          return;
+    
+    console.log(`🔔 Setting up Realtime listener for guild ${guildId}...`);
+    
+    // Create Supabase client for this guild
+    const supabase = createClient(config.supabase_url, config.supabase_service_role_key, {
+      realtime: {
+        params: {
+          eventsPerSecond: 10
         }
-
-        // Skip if not the first occurrence of a recurring event
-        if (event.is_recurring && event.recurring_event_id !== event.id) {
-          console.log('⏭️  Skipping non-first occurrence of recurring event');
-          return;
-        }
-
-        // Skip if already notified
-        if (event.notified_at) {
-          console.log('⏭️  Skipping already-notified event');
-          return;
-        }
-
-        // Handle the new event
-        try {
-          await handleNewEvent(discordClient, event);
-        } catch (error) {
-          console.error('❌ Error handling new event:', error);
-        }
-      }
-    )
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log('✅ Realtime listener subscribed successfully');
-      } else if (status === 'CHANNEL_ERROR') {
-        console.error('❌ Realtime channel error');
-      } else if (status === 'TIMED_OUT') {
-        console.error('⏱️  Realtime subscription timed out');
-      } else if (status === 'CLOSED') {
-        console.log('🔕 Realtime channel closed');
       }
     });
 
-  // Return cleanup function
+    // Subscribe to INSERT events on team_events table for this guild
+    const channel = supabase
+      .channel(`team_events_${guildId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'team_events',
+          filter: `discord_guild_id=eq.${guildId}`
+        },
+        async (payload) => {
+          console.log(`📬 New team event received for guild ${guildId}:`, payload.new);
+          
+          const event = payload.new;
+          
+          // Skip if not the first occurrence of a recurring event
+          if (event.is_recurring && event.recurring_event_id !== event.id) {
+            console.log('⏭️  Skipping non-first occurrence of recurring event');
+            return;
+          }
+
+          // Skip if already notified
+          if (event.notified_at) {
+            console.log('⏭️  Skipping already-notified event');
+            return;
+          }
+
+          // Handle the new event
+          try {
+            await handleNewEvent(discordClient, event);
+          } catch (error) {
+            console.error('❌ Error handling new event:', error);
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`✅ Realtime listener subscribed for guild ${guildId}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`❌ Realtime channel error for guild ${guildId}`);
+        } else if (status === 'TIMED_OUT') {
+          console.error(`⏱️  Realtime subscription timed out for guild ${guildId}`);
+        } else if (status === 'CLOSED') {
+          console.log(`🔕 Realtime channel closed for guild ${guildId}`);
+        }
+      });
+
+    // Store cleanup function
+    cleanupFunctions.push(() => {
+      console.log(`🔕 Cleaning up Realtime listener for guild ${guildId}...`);
+      supabase.removeChannel(channel);
+    });
+  }
+
+  // Return cleanup function that cleans up all channels
   return () => {
-    console.log('🔕 Cleaning up Realtime listener...');
-    supabase.removeChannel(channel);
+    console.log('🔕 Cleaning up all Realtime listeners...');
+    cleanupFunctions.forEach(cleanup => cleanup());
   };
 }
 

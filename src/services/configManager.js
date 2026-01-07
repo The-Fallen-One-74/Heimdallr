@@ -92,11 +92,20 @@ function clearGuildCache(guildId) {
   saveConfigs();
 }
 
+/**
+ * Get all guild configurations
+ * @returns {Object} Object with guildId as keys and config as values
+ */
+function getAllGuildConfigs() {
+  return Object.fromEntries(guildConfigs);
+}
+
 // Load configs on startup
 loadConfigs();
 
 module.exports = {
   getGuildConfig,
+  getAllGuildConfigs,
   saveGuildConfig,
   isGuildConfigured,
   clearGuildCache

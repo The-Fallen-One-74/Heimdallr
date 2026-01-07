@@ -3,11 +3,20 @@ const { getGuildConfig } = require('./configManager');
 const { createClient } = require('@supabase/supabase-js');
 const logger = require('../utils/logger');
 
-// Initialize Supabase client for database updates
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+/**
+ * Get Supabase client for a specific guild
+ * @param {string} guildId - Guild ID
+ * @returns {Object|null} Supabase client or null if config not found
+ */
+function getSupabaseClient(guildId) {
+  const config = getGuildConfig(guildId);
+  if (!config || !config.supabase_url || !config.supabase_service_role_key) {
+    logger.warn(`No Supabase credentials configured for guild ${guildId}`);
+    return null;
+  }
+  
+  return createClient(config.supabase_url, config.supabase_service_role_key);
+}
 
 /**
  * Send a notification to a guild's notification channel
@@ -156,11 +165,17 @@ async function addEventReactions(message, eventType) {
 
 /**
  * Update event record with notification details
+ * @param {string} guildId - Guild ID
  * @param {string} eventId - Event ID
  * @param {string} messageId - Discord message ID
  */
-async function updateEventNotification(eventId, messageId) {
+async function updateEventNotification(guildId, eventId, messageId) {
   try {
+    const supabase = getSupabaseClient(guildId);
+    if (!supabase) {
+      throw new Error(`No Supabase client available for guild ${guildId}`);
+    }
+    
     const { error } = await supabase
       .from('team_events')
       .update({
@@ -249,7 +264,7 @@ async function sendNotificationWithRetry(client, guildId, event, maxRetries = 3)
       
       if (message) {
         // Update database with message ID
-        await updateEventNotification(event.id, message.id);
+        await updateEventNotification(guildId, event.id, message.id);
         return message;
       }
       

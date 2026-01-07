@@ -136,13 +136,10 @@ async function sendReminder(guild, config, event, minutesUntil) {
     let messageContent = '';
     const eventType = event.event_type || 'holiday';
     
-    if (event.discord_role_ids && event.discord_role_ids.length > 0) {
+    if (event.discord_role_ids && Array.isArray(event.discord_role_ids) && event.discord_role_ids.length > 0) {
       // Event with specific roles - mention all roles
       const mentions = event.discord_role_ids.map(roleId => `<@&${roleId}>`).join(' ');
       messageContent = mentions;
-    } else if (event.discord_role_id) {
-      // Legacy: single role ID (for backwards compatibility)
-      messageContent = `<@&${event.discord_role_id}>`;
     } else if (eventType === 'holiday') {
       // Holidays tag @everyone
       messageContent = '@everyone';
@@ -165,7 +162,7 @@ async function sendReminder(guild, config, event, minutesUntil) {
     
     const roleInfo = event.discord_role_ids?.length > 0 
       ? ` with ${event.discord_role_ids.length} role mention(s)` 
-      : event.discord_role_id ? ' with role mention' : '';
+      : '';
     logger.info(`Sent reminder for event "${event.title}" in guild ${guild.id} (${timeText})${roleInfo}`);
   } catch (error) {
     logger.error(`Failed to send reminder for guild ${guild.id}:`, error);
