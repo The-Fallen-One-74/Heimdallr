@@ -60,7 +60,9 @@ function createWebhookRouter(client) {
       logger.info(`Event details - is_recurring: ${event.is_recurring}, recurring_event_id: ${event.recurring_event_id}, id: ${event.id}`);
       
       // Skip if not the first occurrence of a recurring event
-      if (event.is_recurring && event.recurring_event_id !== event.id) {
+      // First occurrence has: recurring_event_id === null OR recurring_event_id === id
+      // Subsequent occurrences have: recurring_event_id !== null AND recurring_event_id !== id
+      if (event.is_recurring && event.recurring_event_id && event.recurring_event_id !== event.id) {
         logger.info(`⏭️  Skipping non-first occurrence: recurring_event_id (${event.recurring_event_id}) !== id (${event.id})`);
         return res.json({ status: 'skipped', reason: 'non-first occurrence' });
       }
