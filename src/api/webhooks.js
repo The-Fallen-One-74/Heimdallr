@@ -42,6 +42,8 @@ function createWebhookRouter(client) {
       
       const { type, table, record, old_record } = req.body;
       
+      logger.info(`Webhook details - Type: ${type}, Table: ${table}, Event ID: ${record?.id}`);
+      
       // Validate webhook payload
       if (type !== 'INSERT' || table !== 'team_events') {
         logger.warn(`Unexpected webhook type: ${type} for table: ${table}`);
@@ -74,15 +76,17 @@ function createWebhookRouter(client) {
         return res.json({ status: 'skipped', reason: 'no discord_guild_id' });
       }
 
-      // Send Discord notification
-      try {
-        await sendNotificationWithRetry(client, event);
-        logger.info(`✅ Successfully sent notification for event ${event.id}`);
-        res.json({ status: 'success', event_id: event.id });
-      } catch (error) {
-        logger.error(`❌ Failed to send notification for event ${event.id}:`, error);
-        res.status(500).json({ error: 'Failed to send notification', event_id: event.id });
-      }
+      // Respond immediately to prevent Supabase from retrying
+      res.json({ status: 'processing', event_id: event.id });
+
+      // Send Discord notification asynchronously (don't await)
+      sendNotificationWithRetry(client, event)
+        .then(() => {
+          logger.info(`✅ Successfully sent notification for event ${event.id}`);
+        })
+        .catch((error) => {
+          logger.error(`❌ Failed to send notification for event ${event.id}:`, error);
+        });
       
     } catch (error) {
       logger.error('❌ Error processing webhook:', error);
