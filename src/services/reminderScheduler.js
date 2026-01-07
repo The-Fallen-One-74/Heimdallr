@@ -132,12 +132,16 @@ async function sendReminder(guild, config, event, minutesUntil) {
     embed.setDescription(`This event is starting ${timeText}!`);
     embed.setColor(0xFF9900); // Orange for reminders
 
-    // Prepare message content with role mention if applicable
+    // Prepare message content with role mentions if applicable
     let messageContent = '';
     const eventType = event.event_type || 'holiday';
     
-    if (event.discord_role_id) {
-      // Meeting with specific role
+    if (event.discord_role_ids && event.discord_role_ids.length > 0) {
+      // Event with specific roles - mention all roles
+      const mentions = event.discord_role_ids.map(roleId => `<@&${roleId}>`).join(' ');
+      messageContent = mentions;
+    } else if (event.discord_role_id) {
+      // Legacy: single role ID (for backwards compatibility)
       messageContent = `<@&${event.discord_role_id}>`;
     } else if (eventType === 'holiday') {
       // Holidays tag @everyone
@@ -149,14 +153,20 @@ async function sendReminder(guild, config, event, minutesUntil) {
       embeds: [embed] 
     });
     
-    // Add RSVP reactions for meetings
+    // Add RSVP reactions for meetings and work sessions
     if (event.event_type === 'meeting') {
       await message.react('✅');
       await message.react('❌');
       await message.react('❓');
+    } else if (event.event_type === 'work_session') {
+      await message.react('✅');
+      await message.react('❌');
     }
     
-    logger.info(`Sent reminder for event "${event.title}" in guild ${guild.id} (${timeText})${event.discord_role_id ? ' with role mention' : ''}`);
+    const roleInfo = event.discord_role_ids?.length > 0 
+      ? ` with ${event.discord_role_ids.length} role mention(s)` 
+      : event.discord_role_id ? ' with role mention' : '';
+    logger.info(`Sent reminder for event "${event.title}" in guild ${guild.id} (${timeText})${roleInfo}`);
   } catch (error) {
     logger.error(`Failed to send reminder for guild ${guild.id}:`, error);
   }

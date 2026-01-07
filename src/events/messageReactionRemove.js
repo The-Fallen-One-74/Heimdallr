@@ -1,9 +1,9 @@
 const { Events } = require('discord.js');
-const { trackRSVP, getRSVPStats } = require('../services/rsvpTracker');
+const { removeRSVP, getRSVPStats } = require('../services/rsvpTracker');
 const logger = require('../utils/logger');
 
 module.exports = {
-  name: Events.MessageReactionAdd,
+  name: Events.MessageReactionRemove,
   async execute(reaction, user) {
     // Ignore bot reactions
     if (user.bot) return;
@@ -24,7 +24,7 @@ module.exports = {
     const embed = reaction.message.embeds[0];
     if (!embed.title) return;
     
-    // Check if this is an event notification (New Event, Reminder, or Starting Now)
+    // Check if this is an event notification
     const isEventNotification = 
       embed.title.includes('📅 New Event:') ||
       embed.title.includes('⏰ Reminder:') ||
@@ -37,17 +37,17 @@ module.exports = {
     if (!validEmojis.includes(reaction.emoji.name)) return;
 
     try {
-      // Extract event title from embed (remove prefix)
+      // Extract event title from embed
       let eventTitle = embed.title;
       eventTitle = eventTitle.replace('📅 New Event: ', '');
       eventTitle = eventTitle.replace('⏰ Reminder: ', '');
       eventTitle = eventTitle.replace('🚀 Starting Now: ', '');
       
-      // Track the RSVP using message ID as event ID
+      // Remove the RSVP using message ID as event ID
       const eventId = reaction.message.id;
-      trackRSVP(eventId, user.id, reaction.emoji.name);
+      removeRSVP(eventId, user.id);
       
-      logger.info(`${user.tag} reacted with ${reaction.emoji.name} for "${eventTitle}" (message ${eventId})`);
+      logger.info(`${user.tag} removed reaction ${reaction.emoji.name} for "${eventTitle}" (message ${eventId})`);
       
       // Update the message with current RSVP stats
       const stats = getRSVPStats(eventId);
@@ -58,23 +58,25 @@ module.exports = {
       // Clone embed data
       const embedData = embed.toJSON();
       
-      // Find or add RSVP field
+      // Find RSVP field and update or remove it
       const rsvpFieldIndex = embedData.fields?.findIndex(f => f.name === '📊 RSVPs');
-      if (rsvpFieldIndex >= 0) {
-        embedData.fields[rsvpFieldIndex].value = rsvpText;
+      
+      if (stats.total === 0) {
+        // Remove RSVP field if no one has responded
+        if (rsvpFieldIndex >= 0) {
+          embedData.fields.splice(rsvpFieldIndex, 1);
+        }
       } else {
-        if (!embedData.fields) embedData.fields = [];
-        embedData.fields.push({
-          name: '📊 RSVPs',
-          value: rsvpText,
-          inline: false
-        });
+        // Update RSVP field
+        if (rsvpFieldIndex >= 0) {
+          embedData.fields[rsvpFieldIndex].value = rsvpText;
+        }
       }
 
       await reaction.message.edit({ embeds: [embedData] });
       logger.info(`Updated RSVP stats for event "${eventTitle}": ${rsvpText}`);
     } catch (error) {
-      logger.error('Failed to process RSVP:', error);
+      logger.error('Failed to process RSVP removal:', error);
     }
   },
 };

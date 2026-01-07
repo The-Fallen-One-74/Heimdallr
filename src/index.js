@@ -5,6 +5,7 @@ const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const logger = require('./utils/logger');
 const { initScheduler, stopScheduler } = require('./services/reminderScheduler');
 const { initApiServer } = require('./api/server');
+const { initRealtimeListener } = require('./services/realtimeListener');
 
 const client = new Client({
   intents: [
@@ -70,6 +71,12 @@ client.once('ready', () => {
   apiServer = initApiServer(client);
 });
 
+// Initialize Realtime listener after client is ready
+let cleanupRealtime;
+client.once('ready', () => {
+  cleanupRealtime = initRealtimeListener(client);
+});
+
 // Error handling
 process.on('unhandledRejection', error => {
   logger.error('Unhandled promise rejection:', error);
@@ -85,6 +92,9 @@ process.on('SIGINT', () => {
   stopScheduler();
   if (apiServer) {
     apiServer.shutdown();
+  }
+  if (cleanupRealtime) {
+    cleanupRealtime();
   }
   client.destroy();
   process.exit(0);

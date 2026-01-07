@@ -1,136 +1,124 @@
-const fs = require('fs');
-const path = require('path');
 const logger = require('../utils/logger');
 
-const TRACKER_DIR = path.join(__dirname, '../../config');
-const TRACKER_FILE = path.join(TRACKER_DIR, 'rsvps.json');
-
-// In-memory cache of RSVPs
-let rsvps = new Map();
+// In-memory storage for RSVPs
+// Structure: Map<eventId, Map<userId, reaction>>
+const rsvpData = new Map();
 
 /**
- * Load RSVPs from file
- */
-function loadRSVPs() {
-  try {
-    if (!fs.existsSync(TRACKER_DIR)) {
-      fs.mkdirSync(TRACKER_DIR, { recursive: true });
-    }
-
-    if (fs.existsSync(TRACKER_FILE)) {
-      const data = fs.readFileSync(TRACKER_FILE, 'utf8');
-      const rsvpData = JSON.parse(data);
-      rsvps = new Map(Object.entries(rsvpData));
-      logger.info(`Loaded ${rsvps.size} RSVP record(s)`);
-    }
-  } catch (error) {
-    logger.error('Failed to load RSVPs:', error);
-  }
-}
-
-/**
- * Save RSVPs to file
- */
-function saveRSVPs() {
-  try {
-    if (!fs.existsSync(TRACKER_DIR)) {
-      fs.mkdirSync(TRACKER_DIR, { recursive: true });
-    }
-
-    const rsvpData = Object.fromEntries(rsvps);
-    fs.writeFileSync(TRACKER_FILE, JSON.stringify(rsvpData, null, 2));
-  } catch (error) {
-    logger.error('Failed to save RSVPs:', error);
-  }
-}
-
-/**
- * Get RSVP key
- * @param {string} guildId - Guild ID
- * @param {string} messageId - Message ID
- * @returns {string}
- */
-function getRSVPKey(guildId, messageId) {
-  return `${guildId}:${messageId}`;
-}
-
-/**
- * Track an RSVP
- * @param {string} guildId - Guild ID
- * @param {string} messageId - Message ID
+ * Track an RSVP for an event
+ * @param {string} eventId - Event ID
  * @param {string} userId - User ID
- * @param {string} userTag - User tag
- * @param {string} status - RSVP status (accepted, declined, maybe)
- * @param {string} eventTitle - Event title
+ * @param {string} reaction - Reaction emoji (✅, ❌, ❓)
  */
-function trackRSVP(guildId, messageId, userId, userTag, status, eventTitle) {
-  const key = getRSVPKey(guildId, messageId);
-  
-  if (!rsvps.has(key)) {
-    rsvps.set(key, {
-      eventTitle: eventTitle,
-      responses: {}
-    });
+function trackRSVP(eventId, userId, reaction) {
+  if (!rsvpData.has(eventId)) {
+    rsvpData.set(eventId, new Map());
   }
-
-  const rsvpData = rsvps.get(key);
-  rsvpData.responses[userId] = {
-    userTag: userTag,
-    status: status,
-    timestamp: new Date().toISOString()
-  };
-
-  saveRSVPs();
+  
+  const eventRSVPs = rsvpData.get(eventId);
+  const previousReaction = eventRSVPs.get(userId);
+  
+  eventRSVPs.set(userId, reaction);
+  
+  logger.info(`RSVP tracked: Event ${eventId}, User ${userId}, Reaction ${reaction}${previousReaction ? ` (changed from ${previousReaction})` : ''}`);
 }
 
 /**
- * Get RSVP statistics for a message
- * @param {string} guildId - Guild ID
- * @param {string} messageId - Message ID
- * @returns {Object} Stats object with accepted, declined, maybe counts
+ * Remove an RSVP for an event
+ * @param {string} eventId - Event ID
+ * @param {string} userId - User ID
  */
-function getRSVPStats(guildId, messageId) {
-  const key = getRSVPKey(guildId, messageId);
-  const rsvpData = rsvps.get(key);
-
-  if (!rsvpData) {
-    return { accepted: 0, declined: 0, maybe: 0 };
+function removeRSVP(eventId, userId) {
+  if (!rsvpData.has(eventId)) {
+    return;
   }
-
-  const stats = { accepted: 0, declined: 0, maybe: 0 };
   
-  for (const response of Object.values(rsvpData.responses)) {
-    stats[response.status]++;
+  const eventRSVPs = rsvpData.get(eventId);
+  const removed = eventRSVPs.delete(userId);
+  
+  if (removed) {
+    logger.info(`RSVP removed: Event ${eventId}, User ${userId}`);
   }
+  
+  // Clean up empty event maps
+  if (eventRSVPs.size === 0) {
+    rsvpData.delete(eventId);
+  }
+}
 
+/**
+ * Get RSVP statistics for an event
+ * @param {string} eventId - Event ID
+ * @returns {Object} RSVP stats with counts for each reaction
+ */
+function getRSVPStats(eventId) {
+  if (!rsvpData.has(eventId)) {
+    return {
+      yes: 0,
+      no: 0,
+      maybe: 0,
+      total: 0,
+      users: []
+    };
+  }
+  
+  const eventRSVPs = rsvpData.get(eventId);
+  const stats = {
+    yes: 0,
+    no: 0,
+    maybe: 0,
+    total: eventRSVPs.size,
+    users: []
+  };
+  
+  for (const [userId, reaction] of eventRSVPs.entries()) {
+    if (reaction === '✅') {
+      stats.yes++;
+    } else if (reaction === '❌') {
+      stats.no++;
+    } else if (reaction === '❓') {
+      stats.maybe++;
+    }
+    
+    stats.users.push({ userId, reaction });
+  }
+  
   return stats;
 }
 
 /**
- * Get all RSVPs for a message
- * @param {string} guildId - Guild ID
- * @param {string} messageId - Message ID
- * @returns {Array} Array of RSVP objects
+ * Get all RSVPs for an event
+ * @param {string} eventId - Event ID
+ * @returns {Map<string, string>} Map of userId to reaction
  */
-function getRSVPs(guildId, messageId) {
-  const key = getRSVPKey(guildId, messageId);
-  const rsvpData = rsvps.get(key);
-
-  if (!rsvpData) {
-    return [];
-  }
-
-  return Object.entries(rsvpData.responses).map(([userId, data]) => ({
-    userId,
-    ...data
-  }));
+function getEventRSVPs(eventId) {
+  return rsvpData.get(eventId) || new Map();
 }
 
-// Load RSVPs on startup
-loadRSVPs();
+/**
+ * Clear all RSVPs for an event
+ * @param {string} eventId - Event ID
+ */
+function clearEventRSVPs(eventId) {
+  const deleted = rsvpData.delete(eventId);
+  if (deleted) {
+    logger.info(`Cleared all RSVPs for event ${eventId}`);
+  }
+}
+
+/**
+ * Get total number of events being tracked
+ * @returns {number} Number of events with RSVPs
+ */
+function getTrackedEventCount() {
+  return rsvpData.size;
+}
 
 module.exports = {
   trackRSVP,
+  removeRSVP,
   getRSVPStats,
-  getRSVPs
+  getEventRSVPs,
+  clearEventRSVPs,
+  getTrackedEventCount
 };
