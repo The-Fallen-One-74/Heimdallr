@@ -117,6 +117,9 @@ module.exports = {
     const meetingDate = new Date(`${dateStr}T${time24}`);
 
     try {
+      // Get guild config to find project_id
+      const config = getGuildConfig(interaction.guildId);
+      
       // Create the event in Bifröst
       const eventData = {
         title: title,
@@ -128,7 +131,12 @@ module.exports = {
         timezone: timezone,
         is_recurring: recurring !== 'none',
         recurrence_pattern: recurring !== 'none' ? recurring : null,
-        discord_role_id: notifyRole ? notifyRole.id : null
+        // Discord integration fields
+        discord_guild_id: interaction.guildId,
+        discord_role_ids: notifyRole ? [notifyRole.id] : null,
+        discord_role_id: notifyRole ? notifyRole.id : null, // Keep for backward compatibility
+        // Project assignment
+        project_id: config?.project_id || null
       };
 
       const createdEvent = await createEvent(interaction.guildId, eventData);
