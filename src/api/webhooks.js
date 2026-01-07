@@ -18,12 +18,13 @@ function createWebhookRouter(client) {
       return res.status(503).json({ error: 'Webhooks not configured' });
     }
     
-    if (!secret || secret !== WEBHOOK_SECRET) {
+    // Trim whitespace and remove any leading colons (Supabase may add these)
+    const cleanSecret = secret ? secret.trim().replace(/^:\s*/, '') : '';
+    
+    if (!cleanSecret || cleanSecret !== WEBHOOK_SECRET) {
       logger.warn(`Unauthorized webhook request from ${req.ip}`);
-      logger.warn(`Expected secret length: ${WEBHOOK_SECRET.length}, Received secret length: ${secret ? secret.length : 0}`);
-      logger.warn(`Expected secret: ${WEBHOOK_SECRET}`);
-      logger.warn(`Received secret: ${secret}`);
-      logger.warn(`Secrets match: ${secret === WEBHOOK_SECRET}`);
+      logger.warn(`Expected: "${WEBHOOK_SECRET}"`);
+      logger.warn(`Received: "${secret}" -> Cleaned: "${cleanSecret}"`);
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
