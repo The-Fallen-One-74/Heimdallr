@@ -16,7 +16,7 @@ function initRealtimeListener(discordClient) {
   
   for (const [guildId, config] of Object.entries(guildConfigs)) {
     console.log(`🔍 Processing guild ${guildId}...`);
-    if (!config.supabase_url || !config.supabase_service_role_key) {
+    if (!config.supabase_url || !config.supabase_key) {
       console.warn(`⚠️  Guild ${guildId} missing Supabase credentials, skipping Realtime listener`);
       continue;
     }
@@ -24,7 +24,7 @@ function initRealtimeListener(discordClient) {
     console.log(`🔔 Setting up Realtime listener for guild ${guildId}...`);
     
     // Create Supabase client for this guild
-    const supabase = createClient(config.supabase_url, config.supabase_service_role_key, {
+    const supabase = createClient(config.supabase_url, config.supabase_key, {
       realtime: {
         params: {
           eventsPerSecond: 10
