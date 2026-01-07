@@ -248,12 +248,17 @@ async function sendImmediateNotification(client, guildId, event) {
 /**
  * Send notification with retry logic
  * @param {Client} client - Discord client
- * @param {string} guildId - Guild ID
- * @param {Object} event - Event object
+ * @param {Object} event - Event object (must contain discord_guild_id)
  * @param {number} maxRetries - Maximum retry attempts (default: 3)
  * @returns {Promise<Message|null>}
  */
-async function sendNotificationWithRetry(client, guildId, event, maxRetries = 3) {
+async function sendNotificationWithRetry(client, event, maxRetries = 3) {
+  const guildId = event.discord_guild_id;
+  
+  if (!guildId) {
+    throw new Error('Event missing discord_guild_id');
+  }
+  
   let lastError;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
