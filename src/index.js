@@ -4,6 +4,7 @@ const path = require('path');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const logger = require('./utils/logger');
 const { initScheduler, stopScheduler } = require('./services/reminderScheduler');
+const { initApiServer } = require('./api/server');
 
 const client = new Client({
   intents: [
@@ -63,6 +64,12 @@ client.once('ready', () => {
   initScheduler(client);
 });
 
+// Initialize API server after client is ready
+let apiServer;
+client.once('ready', () => {
+  apiServer = initApiServer(client);
+});
+
 // Error handling
 process.on('unhandledRejection', error => {
   logger.error('Unhandled promise rejection:', error);
@@ -76,6 +83,9 @@ process.on('uncaughtException', error => {
 process.on('SIGINT', () => {
   logger.info('Shutting down gracefully...');
   stopScheduler();
+  if (apiServer) {
+    apiServer.shutdown();
+  }
   client.destroy();
   process.exit(0);
 });
