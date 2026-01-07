@@ -57,10 +57,11 @@ function createWebhookRouter(client) {
       
       const event = record;
       logger.info(`📬 New team event: ${event.title} (${event.id})`);
+      logger.info(`Event details - is_recurring: ${event.is_recurring}, recurring_event_id: ${event.recurring_event_id}, id: ${event.id}`);
       
       // Skip if not the first occurrence of a recurring event
       if (event.is_recurring && event.recurring_event_id !== event.id) {
-        logger.info('⏭️  Skipping non-first occurrence of recurring event');
+        logger.info(`⏭️  Skipping non-first occurrence: recurring_event_id (${event.recurring_event_id}) !== id (${event.id})`);
         return res.json({ status: 'skipped', reason: 'non-first occurrence' });
       }
 
