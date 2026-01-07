@@ -1,5 +1,6 @@
 const express = require('express');
 const logger = require('../utils/logger');
+const { getAllGuildConfigs } = require('../services/configManager');
 
 /**
  * Discord API routes for fetching guilds and roles
@@ -10,7 +11,8 @@ function createDiscordApiRouter(client) {
 
   /**
    * GET /api/discord/guilds
-   * Get all guilds (Discord servers) the bot is in
+   * Get all CONFIGURED guilds (Discord servers) the bot is in
+   * Only returns guilds that have been set up with /setup command
    * 
    * Response: Array of guild objects
    * [
@@ -30,14 +32,21 @@ function createDiscordApiRouter(client) {
         return res.status(503).json({ error: 'Discord bot not ready' });
       }
 
-      const guilds = client.guilds.cache.map(guild => ({
-        id: guild.id,
-        name: guild.name,
-        icon: guild.icon,
-        memberCount: guild.memberCount
-      }));
+      // Get all configured guild IDs
+      const configuredGuilds = getAllGuildConfigs();
+      const configuredGuildIds = Object.keys(configuredGuilds);
 
-      logger.info(`Returning ${guilds.length} guild(s)`);
+      // Filter to only include guilds that are configured
+      const guilds = client.guilds.cache
+        .filter(guild => configuredGuildIds.includes(guild.id))
+        .map(guild => ({
+          id: guild.id,
+          name: guild.name,
+          icon: guild.icon,
+          memberCount: guild.memberCount
+        }));
+
+      logger.info(`Returning ${guilds.length} configured guild(s) out of ${client.guilds.cache.size} total`);
       res.json(guilds);
     } catch (error) {
       logger.error('Failed to fetch guilds:', error);
