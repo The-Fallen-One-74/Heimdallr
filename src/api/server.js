@@ -16,9 +16,21 @@ function initApiServer(client) {
   // Middleware
   app.use(express.json());
   
-  // CORS configuration - allow desktop app origin
+  // CORS configuration - allow desktop app origin(s)
+  const allowedOrigins = ALLOWED_ORIGIN.split(',').map(origin => origin.trim());
+  
   app.use(cors({
-    origin: ALLOWED_ORIGIN,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn(`CORS blocked request from origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST'],
     credentials: true
   }));
@@ -71,7 +83,7 @@ function initApiServer(client) {
   // Start server
   const server = app.listen(PORT, () => {
     logger.info(`Heimdallr API server listening on port ${PORT}`);
-    logger.info(`CORS enabled for origin: ${ALLOWED_ORIGIN}`);
+    logger.info(`CORS enabled for origins: ${allowedOrigins.join(', ')}`);
     logger.info(`API authentication: ${API_KEY ? 'enabled' : 'disabled (development mode)'}`);
   });
 
