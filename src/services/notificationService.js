@@ -10,12 +10,12 @@ const logger = require('../utils/logger');
  */
 function getSupabaseClient(guildId) {
   const config = getGuildConfig(guildId);
-  if (!config || !config.supabase_url || !config.supabase_service_role_key) {
+  if (!config || !config.supabase_url || !config.supabase_key) {
     logger.warn(`No Supabase credentials configured for guild ${guildId}`);
     return null;
   }
   
-  return createClient(config.supabase_url, config.supabase_service_role_key);
+  return createClient(config.supabase_url, config.supabase_key);
 }
 
 /**

@@ -14,7 +14,7 @@ module.exports = {
         .setRequired(true))
     .addStringOption(option =>
       option.setName('supabase_key')
-        .setDescription('Your Bifröst Supabase anon key')
+        .setDescription('Your Bifröst Supabase service role key (for database updates)')
         .setRequired(true))
     .addChannelOption(option =>
       option.setName('notification_channel')
