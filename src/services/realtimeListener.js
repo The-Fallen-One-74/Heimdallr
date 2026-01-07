@@ -11,9 +11,11 @@ function initRealtimeListener(discordClient) {
   console.log('🔔 Initializing Realtime listeners for all configured guilds...');
   
   const guildConfigs = getAllGuildConfigs();
+  console.log(`📋 Found ${Object.keys(guildConfigs).length} configured guild(s):`, Object.keys(guildConfigs));
   const cleanupFunctions = [];
   
   for (const [guildId, config] of Object.entries(guildConfigs)) {
+    console.log(`🔍 Processing guild ${guildId}...`);
     if (!config.supabase_url || !config.supabase_service_role_key) {
       console.warn(`⚠️  Guild ${guildId} missing Supabase credentials, skipping Realtime listener`);
       continue;
