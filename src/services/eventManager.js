@@ -27,6 +27,7 @@ async function getUpcomingEvents(guildId, daysAhead = 7) {
     const { data, error } = await client
       .from('team_events')
       .select('*')
+      .eq('discord_guild_id', guildId)
       .gte('start_date', now.toISOString().split('T')[0])
       .lte('start_date', future.toISOString().split('T')[0])
       .order('start_date', { ascending: true })

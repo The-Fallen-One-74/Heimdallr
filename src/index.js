@@ -71,11 +71,12 @@ client.once('ready', () => {
   apiServer = initApiServer(client);
 });
 
-// Initialize Realtime listener after client is ready
-let cleanupRealtime;
-client.once('ready', () => {
-  cleanupRealtime = initRealtimeListener(client);
-});
+// Realtime listener disabled - using webhooks instead
+// Webhooks are more reliable and don't timeout on DigitalOcean
+// let cleanupRealtime;
+// client.once('ready', () => {
+//   cleanupRealtime = initRealtimeListener(client);
+// });
 
 // Error handling
 process.on('unhandledRejection', error => {
@@ -93,9 +94,10 @@ process.on('SIGINT', () => {
   if (apiServer) {
     apiServer.shutdown();
   }
-  if (cleanupRealtime) {
-    cleanupRealtime();
-  }
+  // Realtime listener disabled
+  // if (cleanupRealtime) {
+  //   cleanupRealtime();
+  // }
   client.destroy();
   process.exit(0);
 });
