@@ -8,45 +8,33 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction) {
-    const isConfigured = await isGuildConfigured(interaction.guildId);
-
-    if (!isConfigured) {
+    if (!isGuildConfigured(interaction.guildId)) {
       const embed = new EmbedBuilder()
         .setColor(0xFF9900)
         .setTitle('⚠️ Not Configured')
         .setDescription('Heimdallr is not configured for this server yet.')
         .addFields({
           name: 'Setup Required',
-          value: 'Use `/setup` to connect Heimdallr to your Bifröst instance.'
+          value: 'Use `/setup` to connect Heimdallr to your Bifröst organization.'
         });
 
       await interaction.reply({ embeds: [embed], ephemeral: true });
       return;
     }
 
-    const config = await getGuildConfig(interaction.guildId);
+    const config = getGuildConfig(interaction.guildId);
 
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle('🛡️ Heimdallr Configuration')
       .addFields(
-        { name: '📢 Notification Channel', value: `<#${config.notification_channel_id}>`, inline: true },
-        { name: '🌍 Timezone', value: config.timezone, inline: true },
-        { name: '🔗 Bifröst Status', value: '✅ Connected', inline: false },
-        { 
-          name: '⏰ Meeting Reminders', 
-          value: config.reminder_times?.meeting?.map(m => `${m}min`).join(', ') || 'Default',
-          inline: true 
-        },
-        { 
-          name: '🏃 Sprint Reminders', 
-          value: config.reminder_times?.sprint?.map(m => `${m}min`).join(', ') || 'Default',
-          inline: true 
-        },
-        { 
-          name: '🎉 Holiday Reminders', 
-          value: config.reminder_times?.holiday?.map(m => `${m}min`).join(', ') || 'Default',
-          inline: true 
+        { name: '🏢 Organization', value: config.organization_name || `ID: ${config.organization_id}`, inline: true },
+        { name: '📢 Notifications', value: `<#${config.notification_channel_id}>`, inline: true },
+        { name: '🌍 Timezone', value: config.timezone || 'America/New_York', inline: true },
+        {
+          name: '⏰ Meeting Reminders',
+          value: config.reminder_times?.meeting?.map(m => formatMinutes(m)).join(', ') || '24h, 1h, 15m',
+          inline: true
         }
       )
       .setFooter({ text: 'Use /setup to update configuration' })
@@ -55,3 +43,9 @@ module.exports = {
     await interaction.reply({ embeds: [embed], ephemeral: true });
   },
 };
+
+function formatMinutes(m) {
+  if (m >= 1440) return `${Math.floor(m / 1440)}d`;
+  if (m >= 60) return `${Math.floor(m / 60)}h`;
+  return `${m}m`;
+}

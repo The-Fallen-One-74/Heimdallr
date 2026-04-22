@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { saveGuildConfig } = require('../services/configManager');
-const { testBifrostConnection } = require('../services/bifrostClient');
+const { verifyOrganization } = require('../services/bifrostClient');
 const logger = require('../utils/logger');
 
 module.exports = {
@@ -8,85 +8,97 @@ module.exports = {
     .setName('setup')
     .setDescription('Configure Heimdallr for your server (Admin only)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addStringOption(option =>
-      option.setName('supabase_url')
-        .setDescription('Your Bifröst Supabase URL')
-        .setRequired(true))
-    .addStringOption(option =>
-      option.setName('supabase_key')
-        .setDescription('Your Bifröst Supabase service role key (for database updates)')
+    .addIntegerOption(option =>
+      option.setName('organization_id')
+        .setDescription('Your Bifröst organization ID')
         .setRequired(true))
     .addChannelOption(option =>
       option.setName('notification_channel')
-        .setDescription('Channel for notifications')
+        .setDescription('Channel for event notifications')
         .setRequired(true))
     .addStringOption(option =>
       option.setName('timezone')
-        .setDescription('Your timezone (e.g., America/New_York)')
-        .setRequired(false)),
+        .setDescription('Your timezone')
+        .setRequired(false)
+        .addChoices(
+          { name: 'Eastern (ET)', value: 'America/New_York' },
+          { name: 'Central (CT)', value: 'America/Chicago' },
+          { name: 'Mountain (MT)', value: 'America/Denver' },
+          { name: 'Pacific (PT)', value: 'America/Los_Angeles' },
+          { name: 'Alaska (AKT)', value: 'America/Anchorage' },
+          { name: 'Hawaii (HT)', value: 'Pacific/Honolulu' },
+          { name: 'London (GMT/BST)', value: 'Europe/London' },
+          { name: 'Central Europe (CET)', value: 'Europe/Berlin' },
+          { name: 'Eastern Europe (EET)', value: 'Europe/Helsinki' },
+          { name: 'India (IST)', value: 'Asia/Kolkata' },
+          { name: 'Japan (JST)', value: 'Asia/Tokyo' },
+          { name: 'Australia Eastern (AEST)', value: 'Australia/Sydney' },
+          { name: 'Brazil (BRT)', value: 'America/Sao_Paulo' },
+          { name: 'UTC', value: 'UTC' }
+        )),
 
   async execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
 
-    const supabaseUrl = interaction.options.getString('supabase_url');
-    const supabaseKey = interaction.options.getString('supabase_key');
+    const orgId = interaction.options.getInteger('organization_id');
     const notificationChannel = interaction.options.getChannel('notification_channel');
     const timezone = interaction.options.getString('timezone') || 'America/New_York';
 
-    // Test the connection
+    // Verify the organization exists
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle('🔧 Setting up Heimdallr...')
-      .setDescription('Testing connection to your Bifröst instance...');
+      .setDescription('Verifying your Bifröst organization...');
 
     await interaction.editReply({ embeds: [embed] });
 
-    const isValid = await testBifrostConnection(supabaseUrl, supabaseKey);
+    const org = await verifyOrganization(orgId);
 
-    if (!isValid) {
+    if (!org) {
       embed
         .setColor(0xFF0000)
         .setTitle('❌ Setup Failed')
-        .setDescription('Could not connect to your Bifröst instance. Please check your credentials.');
-      
+        .setDescription(`Could not find organization with ID \`${orgId}\`. Check your Bifröst organization settings.`);
+
       await interaction.editReply({ embeds: [embed] });
       return;
     }
 
     // Save configuration
     try {
-      await saveGuildConfig(interaction.guildId, {
-        supabase_url: supabaseUrl,
-        supabase_key: supabaseKey,
+      saveGuildConfig(interaction.guildId, {
+        organization_id: orgId,
+        organization_name: org.name,
         notification_channel_id: notificationChannel.id,
         timezone: timezone,
         reminder_times: {
-          meeting: [1440, 60, 15], // 24h, 1h, 15m before
-          sprint: [1440, 60],       // 24h, 1h before
-          holiday: [10080, 1440]    // 1 week, 1 day before
+          meeting: [1440, 60, 15],
+          work_session: [60, 15],
+          social: [1440, 60],
+          holiday: [1440]
         }
       });
 
       embed
         .setColor(0x00FF00)
         .setTitle('✅ Setup Complete!')
-        .setDescription('Heimdallr is now watching over your realm!')
+        .setDescription(`Heimdallr is now watching over **${org.name}**!`)
         .addFields(
-          { name: '📢 Notification Channel', value: `<#${notificationChannel.id}>`, inline: true },
-          { name: '🌍 Timezone', value: timezone, inline: true },
-          { name: '🔗 Status', value: 'Connected to Bifröst', inline: false }
+          { name: '🏢 Organization', value: org.name, inline: true },
+          { name: '📢 Notifications', value: `<#${notificationChannel.id}>`, inline: true },
+          { name: '🌍 Timezone', value: timezone, inline: true }
         )
         .setFooter({ text: 'Use /config to view or update settings' });
 
       await interaction.editReply({ embeds: [embed] });
-      logger.info(`Guild ${interaction.guildId} configured successfully`);
+      logger.info(`Guild ${interaction.guildId} linked to org "${org.name}" (${orgId})`);
     } catch (error) {
       logger.error('Setup failed:', error);
       embed
         .setColor(0xFF0000)
         .setTitle('❌ Setup Failed')
-        .setDescription('An error occurred while saving your configuration. Please try again.');
-      
+        .setDescription('An error occurred while saving your configuration.');
+
       await interaction.editReply({ embeds: [embed] });
     }
   },

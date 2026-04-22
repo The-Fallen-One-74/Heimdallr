@@ -8,66 +8,51 @@ module.exports = {
     .setName('cancel')
     .setDescription('Cancel a scheduled meeting')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageEvents)
-    .addStringOption(option =>
-      option.setName('meeting_id')
-        .setDescription('Meeting ID (use /meetings to see IDs)')
+    .addIntegerOption(option =>
+      option.setName('event_id')
+        .setDescription('Event ID (use /meetings to see IDs)')
         .setRequired(true)),
 
   async execute(interaction) {
     await interaction.deferReply();
 
-    const isConfigured = isGuildConfigured(interaction.guildId);
-    if (!isConfigured) {
-      const embed = new EmbedBuilder()
-        .setColor(0xFF9900)
-        .setTitle('⚠️ Not Configured')
-        .setDescription('Heimdallr is not configured for this server yet.');
-
-      await interaction.editReply({ embeds: [embed] });
+    if (!isGuildConfigured(interaction.guildId)) {
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(0xFF9900).setTitle('⚠️ Not Configured').setDescription('Run `/setup` first.')]
+      });
       return;
     }
 
-    const meetingId = interaction.options.getString('meeting_id');
+    const eventId = interaction.options.getInteger('event_id');
 
     try {
-      // Get the meeting to verify it exists
-      const events = await getUpcomingEvents(interaction.guildId, 30);
-      const meeting = events.find(e => e.id === meetingId && e.event_type === 'meeting');
+      const events = await getUpcomingEvents(interaction.guildId, 60);
+      const meeting = events.find(e => e.id === eventId);
 
       if (!meeting) {
-        const embed = new EmbedBuilder()
-          .setColor(0xFF0000)
-          .setTitle('❌ Meeting Not Found')
-          .setDescription(`No meeting found with ID: ${meetingId}\n\nUse \`/meetings\` to see all upcoming meetings.`);
-
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply({
+          embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Not Found').setDescription(`No event with ID \`${eventId}\`. Use \`/meetings\` to see IDs.`)]
+        });
         return;
       }
 
-      // Delete the meeting
-      await deleteEvent(interaction.guildId, meetingId);
+      await deleteEvent(interaction.guildId, eventId);
 
       const embed = new EmbedBuilder()
         .setColor(0x00FF00)
         .setTitle('✅ Meeting Cancelled')
-        .setDescription(`Successfully cancelled "${meeting.title}"`)
-        .addFields(
-          { name: '📅 Was scheduled for', value: (meeting.datetime || new Date(meeting.start_date)).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }) }
-        )
+        .setDescription(`Cancelled **${meeting.title}**`)
+        .addFields({ name: '📅 Was scheduled for', value: new Date(meeting.event_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) })
         .setFooter({ text: `Cancelled by ${interaction.user.tag}` })
         .setTimestamp();
 
       await interaction.editReply({ embeds: [embed] });
-      logger.info(`${interaction.user.tag} cancelled meeting "${meeting.title}" in guild ${interaction.guildId}`);
+      logger.info(`${interaction.user.tag} cancelled event ${eventId} "${meeting.title}"`);
     } catch (error) {
       logger.error('Failed to cancel meeting:', error);
-      
-      const embed = new EmbedBuilder()
-        .setColor(0xFF0000)
-        .setTitle('❌ Error')
-        .setDescription('Failed to cancel meeting. Please check your permissions and try again.');
-
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Error').setDescription('Failed to cancel meeting.')]
+      });
     }
   },
 };

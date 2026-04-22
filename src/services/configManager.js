@@ -61,7 +61,9 @@ function getGuildConfig(guildId) {
  * @param {Object} config - Configuration object
  */
 function saveGuildConfig(guildId, config) {
+  const existing = guildConfigs.get(guildId) || {};
   const fullConfig = {
+    ...existing,
     guild_id: guildId,
     ...config,
     updated_at: new Date().toISOString()
@@ -80,16 +82,22 @@ function saveGuildConfig(guildId, config) {
  */
 function isGuildConfigured(guildId) {
   const config = getGuildConfig(guildId);
-  return config !== null && config.supabase_url && config.supabase_key;
+  return config !== null && config.organization_id != null;
 }
 
 /**
- * Clear cached config for a guild
- * @param {string} guildId - Discord guild ID
+ * Find guild ID(s) linked to a specific organization
+ * @param {number} orgId - Bifrost organization ID
+ * @returns {string[]} Array of guild IDs
  */
-function clearGuildCache(guildId) {
-  guildConfigs.delete(guildId);
-  saveConfigs();
+function getGuildsByOrganization(orgId) {
+  const guilds = [];
+  for (const [guildId, config] of guildConfigs) {
+    if (config.organization_id === orgId) {
+      guilds.push(guildId);
+    }
+  }
+  return guilds;
 }
 
 /**
@@ -108,5 +116,5 @@ module.exports = {
   getAllGuildConfigs,
   saveGuildConfig,
   isGuildConfigured,
-  clearGuildCache
+  getGuildsByOrganization
 };

@@ -3,9 +3,12 @@ const fs = require('fs');
 const path = require('path');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const logger = require('./utils/logger');
+const { initBifrostClient } = require('./services/bifrostClient');
 const { initScheduler, stopScheduler } = require('./services/reminderScheduler');
 const { initApiServer } = require('./api/server');
-const { initRealtimeListener } = require('./services/realtimeListener');
+
+// Initialize Bifrost Supabase client
+initBifrostClient();
 
 const client = new Client({
   intents: [
@@ -23,11 +26,11 @@ client.commands = new Collection();
 // Load commands recursively
 function loadCommands(dir) {
   const files = fs.readdirSync(dir);
-  
+
   for (const file of files) {
     const filePath = path.join(dir, file);
     const stat = fs.statSync(filePath);
-    
+
     if (stat.isDirectory()) {
       loadCommands(filePath);
     } else if (file.endsWith('.js')) {
@@ -36,7 +39,7 @@ function loadCommands(dir) {
         client.commands.set(command.data.name, command);
         logger.info(`Loaded command: ${command.data.name}`);
       } else {
-        logger.warn(`Command at ${filePath} is missing required "data" or "execute" property`);
+        logger.warn(`Command at ${filePath} is missing "data" or "execute"`);
       }
     }
   }
@@ -60,23 +63,12 @@ for (const file of eventFiles) {
   logger.info(`Loaded event: ${event.name}`);
 }
 
-// Initialize reminder scheduler after client is ready
-client.once('ready', () => {
-  initScheduler(client);
-});
-
-// Initialize API server after client is ready
+// Initialize services after client is ready
 let apiServer;
 client.once('ready', () => {
+  initScheduler(client);
   apiServer = initApiServer(client);
 });
-
-// Realtime listener disabled - using webhooks instead
-// Webhooks are more reliable and don't timeout on DigitalOcean
-// let cleanupRealtime;
-// client.once('ready', () => {
-//   cleanupRealtime = initRealtimeListener(client);
-// });
 
 // Error handling
 process.on('unhandledRejection', error => {
@@ -91,13 +83,7 @@ process.on('uncaughtException', error => {
 process.on('SIGINT', () => {
   logger.info('Shutting down gracefully...');
   stopScheduler();
-  if (apiServer) {
-    apiServer.shutdown();
-  }
-  // Realtime listener disabled
-  // if (cleanupRealtime) {
-  //   cleanupRealtime();
-  // }
+  if (apiServer) apiServer.shutdown();
   client.destroy();
   process.exit(0);
 });

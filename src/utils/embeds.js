@@ -1,190 +1,121 @@
 const { EmbedBuilder } = require('discord.js');
 
 /**
- * Create an embed for an event
- * @param {Object} event - Event object
+ * Convert event_date + event_time (UTC) to a Unix timestamp
+ * @param {string} dateStr - YYYY-MM-DD
+ * @param {string} timeStr - HH:MM (UTC)
+ * @returns {number} Unix timestamp in seconds
+ */
+function toUnixTimestamp(dateStr, timeStr) {
+  if (!dateStr) return Math.floor(Date.now() / 1000);
+  const utcStr = timeStr ? `${dateStr}T${timeStr}:00Z` : `${dateStr}T00:00:00Z`;
+  return Math.floor(new Date(utcStr).getTime() / 1000);
+}
+
+/**
+ * Format a Discord timestamp string
+ * F = full date+time, R = relative, t = short time, D = long date
+ * @param {number} unix - Unix timestamp
+ * @param {string} style - Discord timestamp style
+ * @returns {string}
+ */
+function discordTimestamp(unix, style = 'F') {
+  return `<t:${unix}:${style}>`;
+}
+
+/**
+ * Create an embed for a calendar event
+ * @param {Object} event - Calendar event object
  * @returns {EmbedBuilder}
  */
 function createEventEmbed(event) {
-  const eventDate = event.datetime || combineDateTime(event.start_date, event.start_time);
-  const eventType = event.event_type || event.type;
-  
+  const eventType = event.type || 'other';
+  const unix = toUnixTimestamp(event.event_date, event.event_time);
+
   const embed = new EmbedBuilder()
     .setTitle(event.title || 'Event')
-    .setColor(getEventColor(eventType))
-    .setTimestamp(eventDate);
+    .setColor(getEventColor(eventType));
 
-  if (event.description) {
-    embed.setDescription(event.description);
-  }
-
-  embed.addFields(
-    { name: '📅 Date', value: formatDate(eventDate), inline: true },
+  const fields = [
+    { name: '📅 When', value: `${discordTimestamp(unix, 'F')}\n${discordTimestamp(unix, 'R')}`, inline: true },
     { name: '🏷️ Type', value: formatEventType(eventType), inline: true }
-  );
+  ];
 
-  if (event.location) {
-    embed.addFields({ name: '📍 Location', value: event.location, inline: true });
-  }
-
+  embed.addFields(fields);
   return embed;
 }
 
 /**
- * Combine date and time strings into a Date object
- * @param {string} dateStr - Date string
- * @param {string} timeStr - Time string
- * @returns {Date}
+ * Build message content with Discord timestamp for notifications
+ * @param {Object} event - Calendar event
+ * @param {string} prefix - Message prefix (e.g., mentions)
+ * @returns {string}
  */
-function combineDateTime(dateStr, timeStr) {
-  if (!dateStr) return new Date();
-  if (timeStr) {
-    return new Date(`${dateStr}T${timeStr}`);
-  }
-  return new Date(dateStr);
-}
-
-/**
- * Create an embed for a sprint
- * @param {Object} sprint - Sprint object
- * @returns {EmbedBuilder}
- */
-function createSprintEmbed(sprint) {
-  const embed = new EmbedBuilder()
-    .setTitle(`🏃 ${sprint.name || 'Sprint'}`)
-    .setColor(0x00D9FF)
-    .setTimestamp();
-
-  if (sprint.goal) {
-    embed.setDescription(`**Goal:** ${sprint.goal}`);
-  }
-
-  embed.addFields(
-    { name: '🚀 Start Date', value: formatDate(sprint.start_date), inline: true },
-    { name: '🏁 End Date', value: formatDate(sprint.end_date), inline: true },
-    { name: '📊 Status', value: getSprintStatus(sprint), inline: true }
-  );
-
-  return embed;
+function buildEventContent(event, prefix = '') {
+  const unix = toUnixTimestamp(event.event_date, event.event_time);
+  const parts = [];
+  if (prefix) parts.push(prefix);
+  parts.push(`📅 **${event.title}** — ${discordTimestamp(unix, 'F')} (${discordTimestamp(unix, 'R')})`);
+  return parts.join('\n');
 }
 
 /**
  * Create an embed for a meeting
- * @param {Object} meeting - Meeting object
- * @returns {EmbedBuilder}
  */
 function createMeetingEmbed(meeting) {
-  const meetingDate = meeting.datetime || combineDateTime(meeting.start_date, meeting.start_time);
-  
-  const embed = new EmbedBuilder()
-    .setTitle(`📅 ${meeting.title || 'Meeting'}`)
-    .setColor(0x5865F2)
-    .setTimestamp(meetingDate);
-
-  if (meeting.description) {
-    embed.setDescription(meeting.description);
-  }
-
-  embed.addFields(
-    { name: '⏰ Time', value: formatDateTime(meetingDate), inline: true }
-  );
-
-  if (meeting.location) {
-    embed.addFields({ name: '📍 Location', value: meeting.location, inline: true });
-  }
-
+  const embed = createEventEmbed(meeting);
+  embed.setColor(0x5865F2);
   return embed;
 }
 
 /**
  * Get color based on event type
- * @param {string} eventType - Event type
- * @returns {number} Color hex
  */
 function getEventColor(eventType) {
   const colors = {
     meeting: 0x5865F2,
-    sprint: 0x00D9FF,
+    work_session: 0x57F287,
+    social: 0xFEE75C,
+    training: 0xEB459E,
     holiday: 0xFFA500,
     deadline: 0xFF0000,
-    celebration: 0x00FF00
+    birthday: 0xFF69B4,
+    other: 0x99AAB5
   };
-  return colors[eventType] || 0x808080;
+  return colors[eventType] || colors.other;
 }
 
 /**
  * Format event type for display
- * @param {string} eventType - Event type
- * @returns {string}
  */
 function formatEventType(eventType) {
   const types = {
     meeting: '📅 Meeting',
-    sprint: '🏃 Sprint',
-    holiday: '🎉 Holiday',
+    work_session: '💼 Work Session',
+    social: '🎉 Social',
+    training: '📚 Training',
+    holiday: '🏖️ Holiday',
     deadline: '⏰ Deadline',
-    celebration: '🎊 Celebration'
+    birthday: '🎂 Birthday',
+    other: '📌 Other'
   };
   return types[eventType] || eventType;
 }
 
 /**
- * Format date for display
- * @param {string} dateString - ISO date string
- * @returns {string}
+ * Format date and time for display using Discord timestamp
  */
-function formatDate(dateString) {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-}
-
-/**
- * Format date and time for display
- * @param {string} dateString - ISO date string
- * @returns {string}
- */
-function formatDateTime(dateString) {
-  const date = new Date(dateString);
-  return date.toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
-}
-
-/**
- * Get sprint status
- * @param {Object} sprint - Sprint object
- * @returns {string}
- */
-function getSprintStatus(sprint) {
-  const now = new Date();
-  const start = new Date(sprint.start_date);
-  const end = new Date(sprint.end_date);
-
-  if (now < start) {
-    return '⏳ Upcoming';
-  } else if (now > end) {
-    return '✅ Completed';
-  } else {
-    return '🔥 Active';
-  }
+function formatDateTime(dateStr, timeStr) {
+  const unix = toUnixTimestamp(dateStr, timeStr);
+  return discordTimestamp(unix, 'F');
 }
 
 module.exports = {
   createEventEmbed,
-  createSprintEmbed,
   createMeetingEmbed,
-  formatDate,
+  buildEventContent,
+  toUnixTimestamp,
+  discordTimestamp,
   formatDateTime,
-  formatEventType,
-  combineDateTime
+  formatEventType
 };

@@ -1,44 +1,47 @@
 const { createClient } = require('@supabase/supabase-js');
 const logger = require('../utils/logger');
 
-// Cache of Supabase clients per guild
-const guildClients = new Map();
+// Single Supabase client for the shared Bifrost database
+let supabaseClient = null;
 
 /**
- * Get or create a Supabase client for a specific guild's Bifröst instance
- * @param {string} guildId - Discord guild ID
- * @param {string} supabaseUrl - Guild's Supabase URL
- * @param {string} supabaseKey - Guild's Supabase key
- * @returns {Object} Supabase client
+ * Initialize the Supabase client from environment variables
  */
-function getBifrostClient(guildId, supabaseUrl, supabaseKey) {
-  // Check cache
-  if (guildClients.has(guildId)) {
-    return guildClients.get(guildId);
-  }
+function initBifrostClient() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY;
 
-  // Create new client
-  try {
-    const client = createClient(supabaseUrl, supabaseKey);
-    guildClients.set(guildId, client);
-    logger.info(`Created Bifröst client for guild ${guildId}`);
-    return client;
-  } catch (error) {
-    logger.error(`Failed to create Bifröst client for guild ${guildId}:`, error);
+  if (!url || !key) {
+    logger.error('SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in .env');
     return null;
   }
+
+  supabaseClient = createClient(url, key);
+  logger.info('Bifröst Supabase client initialized');
+  return supabaseClient;
 }
 
 /**
- * Test connection to a guild's Bifröst instance
- * @param {string} supabaseUrl - Supabase URL
- * @param {string} supabaseKey - Supabase key
- * @returns {boolean}
+ * Get the shared Supabase client
+ * @returns {Object|null} Supabase client
  */
-async function testBifrostConnection(supabaseUrl, supabaseKey) {
+function getBifrostClient() {
+  if (!supabaseClient) {
+    return initBifrostClient();
+  }
+  return supabaseClient;
+}
+
+/**
+ * Test connection to the Bifrost database
+ * @returns {Promise<boolean>}
+ */
+async function testBifrostConnection() {
   try {
-    const client = createClient(supabaseUrl, supabaseKey);
-    const { error } = await client.from('profiles').select('count').limit(1);
+    const client = getBifrostClient();
+    if (!client) return false;
+
+    const { error } = await client.from('organizations').select('id').limit(1);
     if (error) throw error;
     return true;
   } catch (error) {
@@ -48,15 +51,32 @@ async function testBifrostConnection(supabaseUrl, supabaseKey) {
 }
 
 /**
- * Clear cached client for a guild
- * @param {string} guildId - Discord guild ID
+ * Verify an organization exists
+ * @param {number} orgId - Organization ID
+ * @returns {Promise<Object|null>} Organization data or null
  */
-function clearGuildClient(guildId) {
-  guildClients.delete(guildId);
+async function verifyOrganization(orgId) {
+  try {
+    const client = getBifrostClient();
+    if (!client) return null;
+
+    const { data, error } = await client
+      .from('organizations')
+      .select('id, name')
+      .eq('id', orgId)
+      .single();
+
+    if (error) return null;
+    return data;
+  } catch (error) {
+    logger.error(`Failed to verify organization ${orgId}:`, error);
+    return null;
+  }
 }
 
 module.exports = {
+  initBifrostClient,
   getBifrostClient,
   testBifrostConnection,
-  clearGuildClient
+  verifyOrganization
 };
