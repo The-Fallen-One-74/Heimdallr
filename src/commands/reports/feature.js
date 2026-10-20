@@ -1,7 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { isGuildConfigured, getGuildConfig } = require('../../services/configManager');
-const { getBifrostClient } = require('../../services/bifrostClient');
-const { getReportProject } = require('../../services/reportBoard');
+const { submitReport } = require('../../services/reportBoard');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -37,54 +36,18 @@ module.exports = {
     }
 
     const config = getGuildConfig(interaction.guildId);
-    const client = getBifrostClient();
-    if (!client) {
-      await interaction.editReply({
-        embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Error').setDescription('Database connection failed.')]
-      });
-      return;
-    }
-
     const title = interaction.options.getString('title');
     const description = interaction.options.getString('description');
     const priority = interaction.options.getString('priority') || 'medium';
 
     try {
-      const project = await getReportProject(config);
-
-      if (!project) {
-        await interaction.editReply({
-          embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Error').setDescription('No projects found for this organization.')]
-        });
-        return;
-      }
-
-      // Get the first department
-      const { data: departments } = await client
-        .from('departments')
-        .select('id')
-        .eq('organization_id', config.organization_id)
-        .limit(1);
-
-      const deptId = departments?.[0]?.id || null;
-
-      // Insert the feature request
-      const { data, error } = await client
-        .from('tasks')
-        .insert({
-          title,
-          description,
-          type: 'feature',
-          priority,
-          reported_by: interaction.user.tag,
-          column_id: 'product-backlog',
-          project_id: project.id,
-          department_id: deptId,
-        })
-        .select('id')
-        .single();
-
-      if (error) throw error;
+      const data = await submitReport(config, {
+        type: 'feature',
+        title,
+        description,
+        priority,
+        reporterTag: interaction.user.tag
+      });
 
       const priorityEmoji = { low: '🟢', medium: '🟡', high: '🔴' };
 

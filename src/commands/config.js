@@ -30,6 +30,7 @@ module.exports = {
       .setTitle('🛡️ Heimdallr Configuration')
       .addFields(
         { name: '🏢 Organization', value: config.organization_name || `ID: ${config.organization_id}`, inline: true },
+        { name: '🔗 Linked with', value: config.connection_id ? 'Link code' : 'Organization ID (legacy)', inline: true },
         { name: '📢 Notifications', value: `<#${config.notification_channel_id}>`, inline: true },
         { name: '🌍 Timezone', value: config.timezone || 'America/New_York', inline: true },
         {
