@@ -1,12 +1,13 @@
 const cron = require('node-cron');
 const { getGuildConfig } = require('./configManager');
 const { getUpcomingEvents } = require('./eventManager');
-const { createEventEmbed } = require('../utils/embeds');
+const { createEventEmbed, fitTitle } = require('../utils/embeds');
 const { hasBeenSent, markAsSent } = require('./reminderTracker');
 const { getAttendeeIds, getSignups } = require('./signups');
 const { wantsSignups, buildSignupRow } = require('../utils/signupButtons');
 const { getInterestedUserIds } = require('./discordEvents');
 const { getDepartmentRoleMention } = require('./departmentRoles');
+const { ensureLiveConnection } = require('./connectionStatus');
 const logger = require('../utils/logger');
 
 let client = null;
@@ -43,6 +44,7 @@ async function checkUpcomingEvents() {
         if (!config || !config.notification_channel_id || !config.organization_id) {
           continue;
         }
+        if (!(await ensureLiveConnection(guildId))) continue;
 
         // Get events for the next 2 days (covers 24h reminder window)
         const events = await getUpcomingEvents(guildId, 2);
@@ -58,9 +60,10 @@ async function checkUpcomingEvents() {
             // Send reminder if within 5 minutes of the target time
             if (Math.abs(minutesUntil - reminderTime) <= 5) {
               const eventId = String(event.id);
-              if (!hasBeenSent(guildId, eventId, reminderTime)) {
+              const startsAt = `${event.event_date}T${event.event_time || ''}`;
+              if (!hasBeenSent(guildId, eventId, reminderTime, startsAt)) {
                 await sendReminder(guildId, config, event, minutesUntil);
-                markAsSent(guildId, eventId, reminderTime, event.title);
+                markAsSent(guildId, eventId, reminderTime, startsAt, event.title);
               }
             }
           }
@@ -108,7 +111,7 @@ async function sendReminder(guildId, config, event, minutesUntil) {
     const embed = createEventEmbed(event);
     const timeText = formatReminderTime(minutesUntil);
     const unix = require('../utils/embeds').toUnixTimestamp(event.event_date, event.event_time);
-    embed.setTitle(`⏰ Reminder: ${event.title}`);
+    embed.setTitle(fitTitle(`⏰ Reminder: ${event.title}`));
     embed.setDescription(`Starting ${require('../utils/embeds').discordTimestamp(unix, 'R')}!`);
     embed.setColor(0xFF9900);
 

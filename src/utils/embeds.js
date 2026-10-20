@@ -14,6 +14,19 @@ function toUnixTimestamp(dateStr, timeStr) {
   return Math.floor(new Date(utcStr).getTime() / 1000);
 }
 
+// Discord rejects embed titles over 256 characters
+const MAX_TITLE_LENGTH = 256;
+
+/**
+ * Shorten text to fit an embed title
+ * @param {string} text
+ * @returns {string}
+ */
+function fitTitle(text) {
+  const str = String(text);
+  return str.length <= MAX_TITLE_LENGTH ? str : `${str.substring(0, MAX_TITLE_LENGTH - 1)}…`;
+}
+
 /**
  * Format a Discord timestamp string
  * F = full date+time, R = relative, t = short time, D = long date
@@ -35,7 +48,7 @@ function createEventEmbed(event) {
   const unix = toUnixTimestamp(event.event_date, event.event_time);
 
   const embed = new EmbedBuilder()
-    .setTitle(event.title || 'Event')
+    .setTitle(fitTitle(event.title || 'Event'))
     .setColor(getEventColor(eventType));
 
   const when = event.event_time
@@ -116,6 +129,7 @@ module.exports = {
   buildEventContent,
   toUnixTimestamp,
   discordTimestamp,
+  fitTitle,
   formatDateTime,
   formatEventType
 };

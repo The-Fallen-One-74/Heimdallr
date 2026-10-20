@@ -50,14 +50,16 @@ function saveReminders() {
 }
 
 /**
- * Generate a unique key for a reminder
+ * Generate a unique key for a reminder. The start time is part of the key,
+ * so a rescheduled event gets its reminders again for the new time.
  * @param {string} guildId - Guild ID
  * @param {string} eventId - Event ID
  * @param {number} reminderTime - Reminder time in minutes
+ * @param {string} startsAt - Event start, e.g. "2026-11-03T14:00"
  * @returns {string}
  */
-function getReminderKey(guildId, eventId, reminderTime) {
-  return `${guildId}:${eventId}:${reminderTime}`;
+function getReminderKey(guildId, eventId, reminderTime, startsAt) {
+  return `${guildId}:${eventId}:${reminderTime}:${startsAt}`;
 }
 
 /**
@@ -65,10 +67,11 @@ function getReminderKey(guildId, eventId, reminderTime) {
  * @param {string} guildId - Guild ID
  * @param {string} eventId - Event ID
  * @param {number} reminderTime - Reminder time in minutes
+ * @param {string} startsAt - Event start
  * @returns {boolean}
  */
-function hasBeenSent(guildId, eventId, reminderTime) {
-  const key = getReminderKey(guildId, eventId, reminderTime);
+function hasBeenSent(guildId, eventId, reminderTime, startsAt) {
+  const key = getReminderKey(guildId, eventId, reminderTime, startsAt);
   return sentReminders.has(key);
 }
 
@@ -77,10 +80,11 @@ function hasBeenSent(guildId, eventId, reminderTime) {
  * @param {string} guildId - Guild ID
  * @param {string} eventId - Event ID
  * @param {number} reminderTime - Reminder time in minutes
+ * @param {string} startsAt - Event start
  * @param {string} eventTitle - Event title for logging
  */
-function markAsSent(guildId, eventId, reminderTime, eventTitle) {
-  const key = getReminderKey(guildId, eventId, reminderTime);
+function markAsSent(guildId, eventId, reminderTime, startsAt, eventTitle) {
+  const key = getReminderKey(guildId, eventId, reminderTime, startsAt);
   sentReminders.set(key, {
     sentAt: new Date().toISOString(),
     eventTitle: eventTitle

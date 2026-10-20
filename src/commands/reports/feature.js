@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { isGuildConfigured, getGuildConfig } = require('../../services/configManager');
 const { submitReport } = require('../../services/reportBoard');
 const { trackReportPost } = require('../../services/reportPosts');
+const { fitTitle } = require('../../utils/embeds');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -11,6 +12,7 @@ module.exports = {
     .addStringOption(option =>
       option.setName('title')
         .setDescription('Feature title')
+        .setMaxLength(200)
         .setRequired(true))
     .addStringOption(option =>
       option.setName('description')
@@ -54,7 +56,7 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
-        .setTitle(`💡 Feature Request: ${title}`)
+        .setTitle(fitTitle(`💡 Feature Request: ${title}`))
         .setDescription(description.substring(0, 2048))
         .addFields(
           { name: 'Priority', value: `${priorityEmoji[priority] || '🟡'} ${priority.charAt(0).toUpperCase() + priority.slice(1)}`, inline: true },

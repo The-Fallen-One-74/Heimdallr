@@ -10,7 +10,7 @@ PGHOST=/var/run/postgresql PGUSER=postgres docs/bifrost/tests/run.sh
 
 ## Step 1: link and reports
 
-Bot side: done (`/setup code:`, `/bug`, `/feature`, `/reports`).
+Bot side: done (`/setup code:`, `/bug`, `/feature`, `/reports`). The bot also reads `discord_connections.revoked_at` before it posts to a server, and unlinks the server when it was disconnected in Bifröst. Until the table exists it keeps posting as before.
 
 - [ ] Apply [`20261020_discord_link_step1.sql`](20261020_discord_link_step1.sql) Part A: link codes, connections, `redeem_discord_link_code`, `discord_submit_report`, `discord_set_report_project`, `revoke_discord_connection`
 - [ ] Apply Part B, the dedicated owner role and `enforce_work_item_insert` branch, fitted to the task-boundary migration. Without it, `/bug` and `/feature` fail once that migration ships

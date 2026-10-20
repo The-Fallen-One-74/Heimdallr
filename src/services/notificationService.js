@@ -1,6 +1,7 @@
-const { createEventEmbed } = require('../utils/embeds');
+const { createEventEmbed, fitTitle } = require('../utils/embeds');
 const { getGuildConfig, getGuildsByOrganization } = require('./configManager');
 const { createDiscordEvent } = require('./discordEvents');
+const { ensureLiveConnection } = require('./connectionStatus');
 const { getDepartmentRoleMention } = require('./departmentRoles');
 const { getSignups } = require('./signups');
 const { wantsSignups, buildSignupRow } = require('../utils/signupButtons');
@@ -20,6 +21,7 @@ async function sendNotification(client, guildId, { embeds, content, components }
       logger.warn(`No notification channel configured for guild ${guildId}`);
       return null;
     }
+    if (!(await ensureLiveConnection(guildId))) return null;
 
     const guild = await client.guilds.fetch(guildId);
     const channel = await guild.channels.fetch(config.notification_channel_id);
@@ -82,16 +84,16 @@ async function sendEventNotification(client, event, type = 'new') {
 
   switch (type) {
     case 'reminder':
-      embed.setTitle(`⏰ Reminder: ${event.title}`);
+      embed.setTitle(fitTitle(`⏰ Reminder: ${event.title}`));
       embed.setColor(0xFF9900);
       break;
     case 'starting':
-      embed.setTitle(`🚀 Starting Now: ${event.title}`);
+      embed.setTitle(fitTitle(`🚀 Starting Now: ${event.title}`));
       embed.setColor(0x00FF00);
       break;
     case 'new':
     default:
-      embed.setTitle(`📅 New Event: ${event.title}`);
+      embed.setTitle(fitTitle(`📅 New Event: ${event.title}`));
       embed.setColor(0x5865F2);
       break;
   }

@@ -25,7 +25,7 @@ function loadConfigs() {
       logger.info(`Loaded ${guildConfigs.size} guild configuration(s)`);
 
       const unlinked = [...guildConfigs.values()].filter(c => !isLinked(c)).length;
-      if (unlinked) logger.warn(`${unlinked} server(s) were set up by organization ID and need /setup with a link code`);
+      if (unlinked) logger.warn(`${unlinked} server(s) are not linked to Bifröst and need /setup with a link code`);
     }
   } catch (error) {
     logger.error('Failed to load guild configs:', error);
@@ -89,6 +89,21 @@ function saveGuildConfig(guildId, config) {
 }
 
 /**
+ * Forget a server's Bifröst link after it was disconnected in Bifröst.
+ * Other settings stay, so linking again with a new code restores them.
+ * @param {string} guildId - Discord guild ID
+ */
+function unlinkGuild(guildId) {
+  const config = guildConfigs.get(guildId);
+  if (!config?.connection_id) return;
+
+  const { connection_id: _removed, ...rest } = config;
+  guildConfigs.set(guildId, { ...rest, unlinked_at: new Date().toISOString() });
+  saveConfigs();
+  logger.warn(`Guild ${guildId} was disconnected in Bifröst — unlinked`);
+}
+
+/**
  * Check if a guild is configured
  * @param {string} guildId - Discord guild ID
  * @returns {boolean}
@@ -127,6 +142,7 @@ module.exports = {
   getGuildConfig,
   getAllGuildConfigs,
   saveGuildConfig,
+  unlinkGuild,
   isGuildConfigured,
   getGuildsByOrganization
 };

@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { isGuildConfigured, getGuildConfig } = require('../../services/configManager');
 const { getUpcomingEvents } = require('../../services/eventManager');
-const { discordTimestamp, toUnixTimestamp } = require('../../utils/embeds');
+const { discordTimestamp, toUnixTimestamp, fitTitle } = require('../../utils/embeds');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -52,7 +52,7 @@ module.exports = {
         const unix = toUnixTimestamp(meeting.event_date, meeting.event_time);
 
         embed.addFields({
-          name: `${i + 1}. ${meeting.title}`,
+          name: fitTitle(`${i + 1}. ${meeting.title}`),
           value: `${discordTimestamp(unix, 'F')} (${discordTimestamp(unix, 'R')})\n🆔 \`${meeting.id}\``,
           inline: false
         });
