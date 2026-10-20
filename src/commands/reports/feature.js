@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { isGuildConfigured, getGuildConfig } = require('../../services/configManager');
 const { getBifrostClient } = require('../../services/bifrostClient');
+const { getReportProject } = require('../../services/reportBoard');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -49,14 +50,9 @@ module.exports = {
     const priority = interaction.options.getString('priority') || 'medium';
 
     try {
-      // Get the first project for this org
-      const { data: projects } = await client
-        .from('projects')
-        .select('id')
-        .eq('organization_id', config.organization_id)
-        .limit(1);
+      const project = await getReportProject(config);
 
-      if (!projects || projects.length === 0) {
+      if (!project) {
         await interaction.editReply({
           embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Error').setDescription('No projects found for this organization.')]
         });
@@ -82,7 +78,7 @@ module.exports = {
           priority,
           reported_by: interaction.user.tag,
           column_id: 'product-backlog',
-          project_id: projects[0].id,
+          project_id: project.id,
           department_id: deptId,
         })
         .select('id')

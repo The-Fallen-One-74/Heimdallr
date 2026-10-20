@@ -12,9 +12,10 @@ module.exports = {
         .setRequired(true)
         .addChoices(
           { name: 'Meetings', value: 'meeting' },
-          { name: 'Work Sessions', value: 'work_session' },
-          { name: 'Social Events', value: 'social' },
-          { name: 'Training', value: 'training' }
+          { name: 'Company Events', value: 'company' },
+          { name: 'Retrospectives', value: 'retrospective' },
+          { name: 'Holidays', value: 'holiday' },
+          { name: 'Other', value: 'other' }
         ))
     .addStringOption(option =>
       option.setName('times')
@@ -64,9 +65,10 @@ module.exports = {
 
       const typeNames = {
         meeting: 'Meetings',
-        work_session: 'Work Sessions',
-        social: 'Social Events',
-        training: 'Training'
+        company: 'Company Events',
+        retrospective: 'Retrospectives',
+        holiday: 'Holidays',
+        other: 'Other'
       };
 
       const timeDescriptions = times.map(t => {

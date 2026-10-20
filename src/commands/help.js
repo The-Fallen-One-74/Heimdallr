@@ -43,6 +43,7 @@ module.exports = {
         { name: '\n📝 Reports', value: '\u200B', inline: false },
         { name: '/bug', value: 'Report a bug in Bifröst', inline: true },
         { name: '/feature', value: 'Submit a feature request', inline: true },
+        { name: '/reports', value: '**[Admin]** Choose the project that receives reports', inline: true },
         { name: '\n⚙️ Advanced', value: '\u200B', inline: false },
         { name: '/reminders', value: '**[Admin]** Configure reminder times', inline: true }
       );

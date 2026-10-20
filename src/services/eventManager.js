@@ -2,6 +2,52 @@ const { getBifrostClient } = require('./bifrostClient');
 const { getGuildConfig } = require('./configManager');
 const logger = require('../utils/logger');
 
+// Event IDs created from Discord, so the webhook doesn't announce them twice
+const createdFromDiscord = new Set();
+
+/**
+ * Whether an event was created by this bot (via /schedule)
+ * @param {number|string} eventId
+ */
+function wasCreatedFromDiscord(eventId) {
+  return createdFromDiscord.has(String(eventId));
+}
+
+/**
+ * Resolve the Bifröst user recorded as an event's creator.
+ * calendar_events.created_by must be a real user, so default to the
+ * organization's Owner unless BOT_USER_ID is set.
+ * @param {number} orgId
+ * @returns {Promise<string>} User UUID
+ */
+async function getEventCreatorId(orgId) {
+  if (process.env.BOT_USER_ID) return process.env.BOT_USER_ID;
+
+  const client = getBifrostClient();
+  const { data: role, error: roleError } = await client
+    .from('roles')
+    .select('id')
+    .eq('organization_id', orgId)
+    .eq('name', 'Owner')
+    .eq('is_system', true)
+    .maybeSingle();
+
+  if (roleError) throw roleError;
+  if (!role) throw new Error(`No Owner role found for organization ${orgId}`);
+
+  const { data: owners, error } = await client
+    .from('user_roles')
+    .select('user_id')
+    .eq('organization_id', orgId)
+    .eq('role_id', role.id)
+    .order('assigned_at', { ascending: true })
+    .limit(1);
+
+  if (error) throw error;
+  if (!owners || owners.length === 0) throw new Error(`No owner found for organization ${orgId}`);
+  return owners[0].user_id;
+}
+
 /**
  * Get the organization_id for a guild, or throw
  */
@@ -92,17 +138,20 @@ async function createEvent(guildId, eventData) {
   if (!client) throw new Error('Bifröst client not initialized');
 
   try {
+    const createdBy = await getEventCreatorId(orgId);
     const { data, error } = await client
       .from('calendar_events')
       .insert({
         ...eventData,
         organization_id: orgId,
-        created_by: process.env.BOT_USER_ID || null
+        created_by: createdBy
       })
       .select()
       .single();
 
     if (error) throw error;
+    createdFromDiscord.add(String(data.id));
+    setTimeout(() => createdFromDiscord.delete(String(data.id)), 10 * 60 * 1000).unref();
     logger.info(`Created event "${data.title}" for org ${orgId}`);
     return data;
   } catch (error) {
@@ -184,5 +233,6 @@ module.exports = {
   createEvent,
   updateEvent,
   deleteEvent,
-  combineDateTime
+  combineDateTime,
+  wasCreatedFromDiscord
 };

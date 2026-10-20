@@ -78,9 +78,8 @@ async function checkUpcomingEvents() {
 function getReminderTimes(config, eventType) {
   const defaults = {
     meeting: [1440, 60, 15],   // 24h, 1h, 15m
-    work_session: [60, 15],    // 1h, 15m
-    social: [1440, 60],        // 24h, 1h
-    training: [1440, 60],      // 24h, 1h
+    company: [1440, 60],       // 24h, 1h
+    retrospective: [60, 15],   // 1h, 15m
     holiday: [1440],           // 24h
     other: [60]                // 1h
   };

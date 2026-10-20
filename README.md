@@ -6,11 +6,11 @@ Each Discord server is linked to a Bifröst organization. Heimdallr then posts n
 
 ## Features
 
-- **Meetings** — schedule, reschedule, cancel and list Bifröst calendar events from Discord
+- **Meetings** — schedule, reschedule, cancel and list Bifröst calendar events from Discord. Times are entered in the server timezone set in `/setup` and shown to each member in their own timezone
 - **Notifications** — new calendar events are announced in the configured channel (via Supabase webhook)
-- **Reminders** — configurable reminders per event type (meetings, work sessions, social, training)
+- **Reminders** — configurable reminders per event type (meeting, company, retrospective, holiday, other)
 - **RSVPs** — members react ✅ / ❌ / ❓ on event notifications; `/attendees` shows the tally
-- **Reports** — `/bug` and `/feature` create tasks in the organization's Bifröst backlog
+- **Reports** — `/bug` and `/feature` create tasks on the backlog of the project chosen with `/reports`
 - **API** — a small HTTP API for the Bifröst desktop app to read Discord data
 
 ## Commands
@@ -23,6 +23,7 @@ Each Discord server is linked to a Bifröst organization. Heimdallr then posts n
 | `/setup` | **[Admin]** Link this server to a Bifröst organization, notification channel and timezone |
 | `/config` | **[Admin]** View the current configuration |
 | `/reminders` | **[Admin]** Set reminder times for an event type |
+| `/reports` | **[Admin]** Choose the Bifröst project that receives `/bug` and `/feature` reports |
 | `/schedule` | Schedule a meeting |
 | `/reschedule` | Change a meeting's date or time |
 | `/cancel` | Cancel a meeting |
@@ -56,6 +57,7 @@ For development, `npm run dev` restarts on file changes, and `npm run deploy:gui
 | `API_KEY` | No | Key required in `x-api-key` for `/api/discord` routes. If unset, the API is unauthenticated |
 | `WEBHOOK_SECRET` | No | Secret expected in `x-webhook-secret` for webhooks. If unset, webhooks are disabled |
 | `DESKTOP_APP_ORIGIN` | No | Comma-separated CORS origins (default `http://localhost:5173`) |
+| `BOT_USER_ID` | No | Bifröst user recorded as the creator of meetings made with `/schedule`. Defaults to the organization's Owner |
 | `GUILD_ID` | No | Default server for `npm run deploy:guild` |
 | `LOG_LEVEL` | No | Winston log level (default `info`) |
 

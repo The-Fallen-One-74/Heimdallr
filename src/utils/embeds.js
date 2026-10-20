@@ -8,7 +8,9 @@ const { EmbedBuilder } = require('discord.js');
  */
 function toUnixTimestamp(dateStr, timeStr) {
   if (!dateStr) return Math.floor(Date.now() / 1000);
-  const utcStr = timeStr ? `${dateStr}T${timeStr}:00Z` : `${dateStr}T00:00:00Z`;
+  // All-day events are a calendar date, not an instant: use midday UTC so the
+  // date reads the same in every timezone
+  const utcStr = timeStr ? `${dateStr}T${timeStr}:00Z` : `${dateStr}T12:00:00Z`;
   return Math.floor(new Date(utcStr).getTime() / 1000);
 }
 
@@ -36,8 +38,12 @@ function createEventEmbed(event) {
     .setTitle(event.title || 'Event')
     .setColor(getEventColor(eventType));
 
+  const when = event.event_time
+    ? `${discordTimestamp(unix, 'F')}\n${discordTimestamp(unix, 'R')}`
+    : `${discordTimestamp(unix, 'D')} (all day)`;
+
   const fields = [
-    { name: '📅 When', value: `${discordTimestamp(unix, 'F')}\n${discordTimestamp(unix, 'R')}`, inline: true },
+    { name: '📅 When', value: when, inline: true },
     { name: '🏷️ Type', value: formatEventType(eventType), inline: true }
   ];
 
@@ -74,12 +80,9 @@ function createMeetingEmbed(meeting) {
 function getEventColor(eventType) {
   const colors = {
     meeting: 0x5865F2,
-    work_session: 0x57F287,
-    social: 0xFEE75C,
-    training: 0xEB459E,
+    company: 0x57F287,
+    retrospective: 0xEB459E,
     holiday: 0xFFA500,
-    deadline: 0xFF0000,
-    birthday: 0xFF69B4,
     other: 0x99AAB5
   };
   return colors[eventType] || colors.other;
@@ -91,12 +94,9 @@ function getEventColor(eventType) {
 function formatEventType(eventType) {
   const types = {
     meeting: '📅 Meeting',
-    work_session: '💼 Work Session',
-    social: '🎉 Social',
-    training: '📚 Training',
+    company: '🏢 Company',
+    retrospective: '🔁 Retrospective',
     holiday: '🏖️ Holiday',
-    deadline: '⏰ Deadline',
-    birthday: '🎂 Birthday',
     other: '📌 Other'
   };
   return types[eventType] || eventType;

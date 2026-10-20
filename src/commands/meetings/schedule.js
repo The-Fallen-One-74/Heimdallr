@@ -3,6 +3,7 @@ const { isGuildConfigured, getGuildConfig } = require('../../services/configMana
 const { createEvent } = require('../../services/eventManager');
 const { linkEventToMessage } = require('../../services/eventMessageMap');
 const { discordTimestamp, toUnixTimestamp } = require('../../utils/embeds');
+const { parseTime12h, localToUtc } = require('../../utils/time');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -20,7 +21,7 @@ module.exports = {
         .setRequired(true))
     .addStringOption(option =>
       option.setName('time')
-        .setDescription('Time (e.g., 9:00 AM, 2:30 PM)')
+        .setDescription('Time in the server timezone (e.g., 9:00 AM, 2:30 PM)')
         .setRequired(true))
     .addRoleOption(option =>
       option.setName('notify_role')
@@ -50,31 +51,26 @@ module.exports = {
       return;
     }
 
-    // Parse 12h time to 24h
-    const timeMatch = timeStr.match(/^(0?[1-9]|1[0-2]):([0-5][0-9])\s?(AM|PM|am|pm)$/);
-    if (!timeMatch) {
+    const time24 = parseTime12h(timeStr);
+    if (!time24) {
       await interaction.editReply({
         embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Invalid Time').setDescription('Use format like `9:00 AM` or `2:30 PM`')]
       });
       return;
     }
 
-    let hours = parseInt(timeMatch[1]);
-    const minutes = timeMatch[2];
-    const period = timeMatch[3].toUpperCase();
-    if (period === 'PM' && hours !== 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
-    const time24 = `${hours.toString().padStart(2, '0')}:${minutes}`;
+    // Times are entered in the server's timezone; Bifröst stores UTC
+    const config = getGuildConfig(interaction.guildId);
+    const utc = localToUtc(dateStr, time24, config.timezone || 'America/New_York');
 
     try {
       const event = await createEvent(interaction.guildId, {
         title,
         type: 'meeting',
-        event_date: dateStr,
-        event_time: time24
+        ...utc
       });
 
-      const unix = toUnixTimestamp(dateStr, time24);
+      const unix = toUnixTimestamp(utc.event_date, utc.event_time);
       const embed = new EmbedBuilder()
         .setColor(0x00FF00)
         .setTitle('✅ Meeting Scheduled')
@@ -92,7 +88,6 @@ module.exports = {
       await interaction.editReply({ embeds: [embed] });
 
       // Post to notification channel
-      const config = getGuildConfig(interaction.guildId);
       if (config?.notification_channel_id) {
         try {
           const channel = await interaction.guild.channels.fetch(config.notification_channel_id);
