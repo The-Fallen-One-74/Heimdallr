@@ -30,7 +30,8 @@ function fakeInteraction(guildId, options = {}) {
       getString: k => options[k] ?? null,
       getInteger: k => options[k] ?? null,
       getBoolean: k => options[k] ?? null,
-      getChannel: k => options[k] ?? null
+      getChannel: k => options[k] ?? null,
+      getRole: k => options[k] ?? null
     },
     deferReply: async () => {},
     reply: async payload => { replies.push(payload); },
@@ -138,4 +139,47 @@ test('/attendees lists sign-ups by answer', async () => {
   const embed = i.lastEmbed();
   assert.equal(embed.title, '📊 Sign-ups: Design sync');
   assert.deepEqual(embed.fields.map(f => f.name), ['✅ Joining (1)', '❓ Maybe (1)']);
+});
+
+test('titles are capped so long ones never break a post', async () => {
+  for (const name of ['bug', 'feature', 'schedule']) {
+    const title = commands[name].data.toJSON().options.find(o => o.name === 'title');
+    assert.equal(title.max_length, 200, `/${name} title`);
+  }
+
+  const { createEventEmbed, fitTitle } = require('../src/utils/embeds');
+  const long = 'x'.repeat(400);
+  assert.equal(fitTitle(long).length, 256);
+  assert.equal(fitTitle('Short'), 'Short');
+  assert.equal(createEventEmbed({ title: long, event_date: '2026-11-02', event_time: '17:00' }).data.title.length, 256);
+});
+
+test('a long Bifröst event title still gets its new-event post', async () => {
+  linkGuild('long-1', { organization_id: 4242 });
+  useFakeSupabase();
+  const { createFakeDiscord } = require('./helpers/setup');
+  const { sendEventNotification } = require('../src/services/notificationService');
+  const discord = createFakeDiscord('long-1');
+  const messages = await sendEventNotification(discord, { id: 90, organization_id: 4242, title: 'y'.repeat(500), type: 'meeting', event_date: '2030-01-01', event_time: '12:00' });
+  assert.equal(messages.length, 1);
+  assert.equal(discord.channel.sent[0].embeds[0].data.title.length, 256);
+});
+
+test('/schedule refuses impossible and past dates without creating anything', async () => {
+  linkGuild('sch-1');
+  const fake = useFakeSupabase();
+
+  const impossible = fakeInteraction('sch-1', { title: 'Sync', date: '2026-02-31', time: '9:00 AM' });
+  await commands.schedule.execute(impossible);
+  assert.equal(impossible.lastEmbed().title, '❌ Invalid Date');
+
+  const past = fakeInteraction('sch-1', { title: 'Sync', date: '2020-01-06', time: '9:00 AM' });
+  await commands.schedule.execute(past);
+  assert.equal(past.lastEmbed().title, '❌ Time Has Passed');
+
+  const reschedule = fakeInteraction('sch-1', { event_id: 1, date: '2026-13-01', time: '9:00 AM' });
+  await commands.reschedule.execute(reschedule);
+  assert.equal(reschedule.lastEmbed().title, '❌ Invalid Date');
+
+  assert.equal(fake.calls.some(c => c.kind === 'insert' || c.kind === 'update'), false);
 });

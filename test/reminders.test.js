@@ -62,3 +62,25 @@ test('holiday reminders have no buttons and events outside a reminder window are
   assert.match(discord.channel.sent[0].embeds[0].data.title, /Day off/);
   assert.deepEqual(discord.channel.sent[0].components, []);
 });
+
+test('a rescheduled event gets its reminder again for the new time', async (t) => {
+  linkGuild('g3');
+  const discord = createFakeDiscord('g3');
+  let event = eventIn(60, { id: 80 });
+  useFakeSupabase({ tables: { calendar_events: () => ({ data: [event], error: null }) } });
+
+  initScheduler(discord);
+  t.after(stopScheduler);
+
+  await checkUpcomingEvents();
+  assert.equal(discord.channel.sent.length, 1);
+
+  // Same event, still an hour out but at a new time: the reminder goes out again
+  event = eventIn(56, { id: 80 });
+  await checkUpcomingEvents();
+  assert.equal(discord.channel.sent.length, 2);
+
+  // And only once for that time
+  await checkUpcomingEvents();
+  assert.equal(discord.channel.sent.length, 2);
+});

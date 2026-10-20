@@ -3,8 +3,8 @@ const { isGuildConfigured, getGuildConfig } = require('../../services/configMana
 const { createEvent } = require('../../services/eventManager');
 const { buildSignupRow } = require('../../utils/signupButtons');
 const { createDiscordEvent } = require('../../services/discordEvents');
-const { discordTimestamp, toUnixTimestamp } = require('../../utils/embeds');
-const { parseTime12h, localToUtc } = require('../../utils/time');
+const { discordTimestamp, toUnixTimestamp, fitTitle } = require('../../utils/embeds');
+const { isValidDate, parseTime12h, localToUtc } = require('../../utils/time');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -15,6 +15,7 @@ module.exports = {
     .addStringOption(option =>
       option.setName('title')
         .setDescription('Meeting title')
+        .setMaxLength(200)
         .setRequired(true))
     .addStringOption(option =>
       option.setName('date')
@@ -45,9 +46,9 @@ module.exports = {
     const notifyRole = interaction.options.getRole('notify_role');
 
     // Validate date
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    if (!isValidDate(dateStr)) {
       await interaction.editReply({
-        embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Invalid Date').setDescription('Use YYYY-MM-DD format')]
+        embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Invalid Date').setDescription('Use a real date in YYYY-MM-DD format, e.g. 2026-11-03')]
       });
       return;
     }
@@ -63,6 +64,13 @@ module.exports = {
     // Times are entered in the server's timezone; Bifröst stores UTC
     const config = getGuildConfig(interaction.guildId);
     const utc = localToUtc(dateStr, time24, config.timezone || 'America/New_York');
+
+    if (toUnixTimestamp(utc.event_date, utc.event_time) * 1000 <= Date.now()) {
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Time Has Passed').setDescription('Pick a date and time in the future.')]
+      });
+      return;
+    }
 
     try {
       const event = await createEvent(interaction.guildId, {
@@ -98,7 +106,7 @@ module.exports = {
           if (channel) {
             const notifEmbed = new EmbedBuilder()
               .setColor(0x5865F2)
-              .setTitle(`📅 New Meeting: ${title}`)
+              .setTitle(fitTitle(`📅 New Meeting: ${title}`))
               .addFields(
                 { name: '📅 When', value: `${discordTimestamp(unix, 'F')}\n${discordTimestamp(unix, 'R')}`, inline: true }
               )

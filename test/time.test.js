@@ -1,7 +1,7 @@
 require('./helpers/setup');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseTime12h, localToUtc } = require('../src/utils/time');
+const { isValidDate, parseTime12h, localToUtc } = require('../src/utils/time');
 
 test('parseTime12h reads 12-hour times', () => {
   assert.equal(parseTime12h('9:00 AM'), '09:00');
@@ -33,4 +33,11 @@ test('localToUtc uses the offset in effect on each side of a DST switch', () => 
   assert.deepEqual(localToUtc('2026-11-01', '12:00', 'America/New_York'), { event_date: '2026-11-01', event_time: '17:00' });
   // London switches on different dates
   assert.deepEqual(localToUtc('2026-03-29', '12:00', 'Europe/London'), { event_date: '2026-03-29', event_time: '11:00' });
+});
+
+test('isValidDate accepts only real calendar dates', () => {
+  for (const good of ['2026-02-28', '2028-02-29', '2026-12-31']) assert.equal(isValidDate(good), true, good);
+  for (const bad of ['2026-02-31', '2027-02-29', '2026-13-01', '2026-00-10', '2026-1-5', '', null]) {
+    assert.equal(isValidDate(bad), false, String(bad));
+  }
 });

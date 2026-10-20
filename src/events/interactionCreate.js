@@ -1,9 +1,25 @@
 const { Events } = require('discord.js');
 const signupButton = require('../interactions/signupButton');
+const { ensureLiveConnection } = require('../services/connectionStatus');
 const logger = require('../utils/logger');
 
 // Handlers for buttons on the bot's posts
 const buttonHandlers = [signupButton];
+
+// Discord gives 3 seconds to answer, so don't wait long on Bifröst
+const CONNECTION_CHECK_TIMEOUT_MS = 1500;
+
+/**
+ * Unlink the server first if it was disconnected in Bifröst, so the
+ * command sees it as not set up
+ */
+async function checkConnection(guildId) {
+  if (!guildId) return;
+  await Promise.race([
+    ensureLiveConnection(guildId).catch(error => logger.warn(`Connection check failed for guild ${guildId}: ${error.message}`)),
+    new Promise(resolve => setTimeout(resolve, CONNECTION_CHECK_TIMEOUT_MS).unref())
+  ]);
+}
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -24,6 +40,7 @@ module.exports = {
       const handler = buttonHandlers.find(h => h.matches(interaction));
       if (!handler) return;
 
+      await checkConnection(interaction.guildId);
       try {
         await handler.handle(interaction);
       } catch (error) {
@@ -44,6 +61,7 @@ module.exports = {
       return;
     }
 
+    await checkConnection(interaction.guildId);
     try {
       logger.info(`${interaction.user.tag} executed /${interaction.commandName}`);
       await command.execute(interaction);

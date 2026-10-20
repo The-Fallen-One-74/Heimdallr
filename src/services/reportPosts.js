@@ -1,6 +1,7 @@
 const { createJsonStore } = require('../utils/jsonStore');
 const { describeStatusChange } = require('../utils/reportStatus');
 const { getGuildConfig } = require('./configManager');
+const { ensureLiveConnection } = require('./connectionStatus');
 const logger = require('../utils/logger');
 
 // Bifröst task ID → where the report was filed in Discord
@@ -37,6 +38,7 @@ function getReportPost(taskId) {
 async function postReportStatus(client, task, previous) {
   const post = getReportPost(task.id);
   if (!post || !getGuildConfig(post.guildId)) return false;
+  if (!(await ensureLiveConnection(post.guildId))) return false;
 
   const change = describeStatusChange(post.type, previous?.column_id ?? null, task.column_id);
   if (!change) return false;

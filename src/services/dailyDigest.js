@@ -4,6 +4,7 @@ const { getBifrostClient } = require('./bifrostClient');
 const { getGuildConfig, saveGuildConfig } = require('./configManager');
 const { sendNotification } = require('./notificationService');
 const { getDepartmentRoleMention } = require('./departmentRoles');
+const { ensureLiveConnection } = require('./connectionStatus');
 const { discordTimestamp, toUnixTimestamp } = require('../utils/embeds');
 const logger = require('../utils/logger');
 
@@ -164,6 +165,7 @@ async function checkDailyPosts(client) {
 
       const { date, hour } = getLocalNow(config.timezone || 'America/New_York');
       if (hour !== settings.hour || config.daily_last_posted === date) continue;
+      if (!(await ensureLiveConnection(guildId))) continue;
 
       // Mark first so a failure doesn't repeat the post every hour
       saveGuildConfig(guildId, { daily_last_posted: date });

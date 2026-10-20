@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { isGuildConfigured } = require('../../services/configManager');
 const { getUpcomingEvents } = require('../../services/eventManager');
 const { getSignups } = require('../../services/signups');
+const { fitTitle } = require('../../utils/embeds');
 const logger = require('../../utils/logger');
 
 // Discord embed field values are capped at 1024 characters
@@ -46,7 +47,7 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
-        .setTitle(`📊 Sign-ups: ${event?.title || `Event #${eventId}`}`)
+        .setTitle(fitTitle(`📊 Sign-ups: ${event?.title || `Event #${eventId}`}`))
         .setDescription(total ? `${total} response(s)` : 'No one has signed up yet.')
         .setTimestamp();
 

@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { isGuildConfigured, getGuildConfig } = require('../../services/configManager');
 const { submitReport } = require('../../services/reportBoard');
 const { trackReportPost } = require('../../services/reportPosts');
+const { fitTitle } = require('../../utils/embeds');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -11,6 +12,7 @@ module.exports = {
     .addStringOption(option =>
       option.setName('title')
         .setDescription('Short bug title')
+        .setMaxLength(200)
         .setRequired(true))
     .addStringOption(option =>
       option.setName('steps')
@@ -62,7 +64,7 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(0xFF0000)
-        .setTitle(`🐛 Bug Reported: ${title}`)
+        .setTitle(fitTitle(`🐛 Bug Reported: ${title}`))
         .addFields(
           { name: 'Severity', value: `${severityEmoji[severity] || '🔴'} ${severity.charAt(0).toUpperCase() + severity.slice(1)}`, inline: true },
           { name: 'Task ID', value: `\`#${data.id}\``, inline: true },

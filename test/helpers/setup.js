@@ -12,6 +12,12 @@ const SRC = path.join(__dirname, '../../src');
 // Keep test output clean, and keep expected errors out of logs/error.log
 require(path.join(SRC, 'utils/logger')).silent = true;
 
+// Every linked test server counts as still connected in Bifröst unless a
+// test says otherwise
+const DEFAULT_TABLES = {
+  discord_connections: () => ({ data: { revoked_at: null }, error: null })
+};
+
 /**
  * A fake Supabase client.
  * - tables: { [table]: (query) => ({ data, error }) }, query = { table, ops: [[method, args]] }
@@ -32,7 +38,7 @@ function createFakeSupabase({ tables = {}, rpc = () => ({ data: null, error: nul
       calls.push({ kind: 'from', table });
       const query = { table, ops: [] };
       const respond = () => {
-        const handler = fake.tables[table];
+        const handler = fake.tables[table] || DEFAULT_TABLES[table];
         return Promise.resolve(handler ? handler(query) : { data: null, error: null });
       };
       const chain = new Proxy({}, {
@@ -67,6 +73,7 @@ require.cache[require.resolve(path.join(SRC, 'services/bifrostClient'))] = {
  * Use a new fake client for the following calls
  */
 function useFakeSupabase(options) {
+  require(path.join(SRC, 'services/connectionStatus')).clearConnectionCache();
   current = createFakeSupabase(options);
   return current;
 }

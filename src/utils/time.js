@@ -15,6 +15,18 @@ function parseTime12h(timeStr) {
 }
 
 /**
+ * Whether a string is a real calendar date in YYYY-MM-DD form.
+ * Rejects dates like 2026-02-31 that Date would roll into March.
+ * @param {string} dateStr
+ * @returns {boolean}
+ */
+function isValidDate(dateStr) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || '')) return false;
+  const date = new Date(`${dateStr}T00:00:00Z`);
+  return !isNaN(date.getTime()) && date.toISOString().substring(0, 10) === dateStr;
+}
+
+/**
  * Offset of a timezone from UTC at a given instant, in minutes
  */
 function getOffsetMinutes(timeZone, date) {
@@ -54,6 +66,7 @@ function localToUtc(dateStr, time24, timeZone = 'UTC') {
 }
 
 module.exports = {
+  isValidDate,
   parseTime12h,
   localToUtc
 };

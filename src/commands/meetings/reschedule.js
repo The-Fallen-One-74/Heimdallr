@@ -3,7 +3,7 @@ const { isGuildConfigured, getGuildConfig } = require('../../services/configMana
 const { updateEvent, getUpcomingEvents } = require('../../services/eventManager');
 const { updateDiscordEvent } = require('../../services/discordEvents');
 const { discordTimestamp, toUnixTimestamp } = require('../../utils/embeds');
-const { parseTime12h, localToUtc } = require('../../utils/time');
+const { isValidDate, parseTime12h, localToUtc } = require('../../utils/time');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -38,9 +38,9 @@ module.exports = {
     const dateStr = interaction.options.getString('date');
     const timeStr = interaction.options.getString('time');
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    if (!isValidDate(dateStr)) {
       await interaction.editReply({
-        embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Invalid Date').setDescription('Use YYYY-MM-DD format')]
+        embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Invalid Date').setDescription('Use a real date in YYYY-MM-DD format, e.g. 2026-11-03')]
       });
       return;
     }
@@ -56,6 +56,13 @@ module.exports = {
     // Times are entered in the server's timezone; Bifröst stores UTC
     const config = getGuildConfig(interaction.guildId);
     const utc = localToUtc(dateStr, time24, config.timezone || 'America/New_York');
+
+    if (toUnixTimestamp(utc.event_date, utc.event_time) * 1000 <= Date.now()) {
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Time Has Passed').setDescription('Pick a date and time in the future.')]
+      });
+      return;
+    }
 
     try {
       const events = await getUpcomingEvents(interaction.guildId, 60);
