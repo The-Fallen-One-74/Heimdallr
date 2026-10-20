@@ -35,19 +35,14 @@ module.exports = {
         { name: '/config', value: '**[Admin]** View current configuration', inline: true },
         { name: '/setup', value: '**[Admin]** Update configuration', inline: true },
         { name: '\n📅 Events & Meetings', value: '\u200B', inline: false },
-        { name: '/digest', value: 'Get event summary', inline: true },
         { name: '/schedule', value: 'Schedule a new meeting', inline: true },
         { name: '/reschedule', value: 'Reschedule a meeting', inline: true },
         { name: '/cancel', value: 'Cancel a meeting', inline: true },
         { name: '/attendees', value: 'View meeting attendees', inline: true },
         { name: '/meetings', value: 'List upcoming meetings', inline: true },
-        { name: '/today', value: 'Show today\'s events', inline: true },
-        { name: '/week', value: 'Show this week\'s events', inline: true },
-        { name: '/month', value: 'Show this month\'s events', inline: true },
-        { name: '\n🏃 Sprints', value: '\u200B', inline: false },
-        { name: '/sprint', value: 'View current sprint information', inline: true },
-        { name: '\n🎉 Holidays', value: '\u200B', inline: false },
-        { name: '/holidays', value: 'List upcoming holidays', inline: true },
+        { name: '\n📝 Reports', value: '\u200B', inline: false },
+        { name: '/bug', value: 'Report a bug in Bifröst', inline: true },
+        { name: '/feature', value: 'Submit a feature request', inline: true },
         { name: '\n⚙️ Advanced', value: '\u200B', inline: false },
         { name: '/reminders', value: '**[Admin]** Configure reminder times', inline: true }
       );
@@ -56,7 +51,7 @@ module.exports = {
     embed
       .addFields({ 
         name: '\n🔗 Getting Started', 
-        value: 'Heimdallr connects to your Bifröst workspace to send notifications about meetings, sprints, and holidays.',
+        value: 'Heimdallr connects to your Bifröst workspace to send notifications and reminders about meetings and events.',
         inline: false 
       })
       .setFooter({ text: 'More features coming soon!' })
