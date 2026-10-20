@@ -45,7 +45,9 @@ module.exports = {
         { name: '/feature', value: 'Submit a feature request', inline: true },
         { name: '/reports', value: '**[Admin]** Choose the project that receives reports', inline: true },
         { name: '\n⚙️ Advanced', value: '\u200B', inline: false },
-        { name: '/reminders', value: '**[Admin]** Configure reminder times', inline: true }
+        { name: '/reminders', value: '**[Admin]** Configure reminder times', inline: true },
+        { name: '/departments', value: '**[Admin]** Tag a role for a department', inline: true },
+        { name: '/daily', value: '**[Admin]** Configure the daily post', inline: true }
       );
     }
 

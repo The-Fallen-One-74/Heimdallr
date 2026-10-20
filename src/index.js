@@ -5,6 +5,7 @@ const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const logger = require('./utils/logger');
 const { initBifrostClient } = require('./services/bifrostClient');
 const { initScheduler, stopScheduler } = require('./services/reminderScheduler');
+const { initDailyDigest, stopDailyDigest } = require('./services/dailyDigest');
 const { initApiServer } = require('./api/server');
 
 // Initialize Bifrost Supabase client
@@ -67,6 +68,7 @@ for (const file of eventFiles) {
 let apiServer;
 client.once('ready', () => {
   initScheduler(client);
+  initDailyDigest(client);
   apiServer = initApiServer(client);
 });
 
@@ -83,6 +85,7 @@ process.on('uncaughtException', error => {
 process.on('SIGINT', () => {
   logger.info('Shutting down gracefully...');
   stopScheduler();
+  stopDailyDigest();
   if (apiServer) apiServer.shutdown();
   client.destroy();
   process.exit(0);

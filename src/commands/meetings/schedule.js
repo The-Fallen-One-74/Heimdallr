@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('disc
 const { isGuildConfigured, getGuildConfig } = require('../../services/configManager');
 const { createEvent } = require('../../services/eventManager');
 const { linkEventToMessage } = require('../../services/eventMessageMap');
+const { createDiscordEvent } = require('../../services/discordEvents');
 const { discordTimestamp, toUnixTimestamp } = require('../../utils/embeds');
 const { parseTime12h, localToUtc } = require('../../utils/time');
 const logger = require('../../utils/logger');
@@ -87,6 +88,9 @@ module.exports = {
 
       await interaction.editReply({ embeds: [embed] });
 
+      // Also list it in the server's Events tab
+      const discordEvent = await createDiscordEvent(interaction.guild, event);
+
       // Post to notification channel
       if (config?.notification_channel_id) {
         try {
@@ -100,6 +104,10 @@ module.exports = {
               )
               .setFooter({ text: `Scheduled by ${interaction.user.tag}` })
               .setTimestamp();
+
+            if (discordEvent) {
+              notifEmbed.addFields({ name: '🗓️ Discord Event', value: `[Mark yourself Interested](${discordEvent.url})`, inline: true });
+            }
 
             const msg = await channel.send({
               content: notifyRole ? `<@&${notifyRole.id}> New meeting scheduled!` : undefined,

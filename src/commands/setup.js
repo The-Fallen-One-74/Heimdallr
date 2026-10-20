@@ -35,7 +35,11 @@ module.exports = {
           { name: 'Australia Eastern (AEST)', value: 'Australia/Sydney' },
           { name: 'Brazil (BRT)', value: 'America/Sao_Paulo' },
           { name: 'UTC', value: 'UTC' }
-        )),
+        ))
+    .addBooleanOption(option =>
+      option.setName('discord_events')
+        .setDescription('Also list meetings in the server Events tab (default: on)')
+        .setRequired(false)),
 
   async execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
@@ -43,6 +47,7 @@ module.exports = {
     const orgId = interaction.options.getInteger('organization_id');
     const notificationChannel = interaction.options.getChannel('notification_channel');
     const timezone = interaction.options.getString('timezone') || 'America/New_York';
+    const discordEvents = interaction.options.getBoolean('discord_events') ?? true;
 
     // Verify the organization exists
     const embed = new EmbedBuilder()
@@ -71,6 +76,7 @@ module.exports = {
         organization_name: org.name,
         notification_channel_id: notificationChannel.id,
         timezone: timezone,
+        discord_events: discordEvents,
         reminder_times: {
           meeting: [1440, 60, 15],
           company: [1440, 60],
@@ -86,7 +92,8 @@ module.exports = {
         .addFields(
           { name: '🏢 Organization', value: org.name, inline: true },
           { name: '📢 Notifications', value: `<#${notificationChannel.id}>`, inline: true },
-          { name: '🌍 Timezone', value: timezone, inline: true }
+          { name: '🌍 Timezone', value: timezone, inline: true },
+          { name: '🗓️ Discord Events', value: discordEvents ? 'On' : 'Off', inline: true }
         )
         .setFooter({ text: 'Use /config to view or update settings' });
 

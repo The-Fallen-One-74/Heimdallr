@@ -2,6 +2,7 @@ const express = require('express');
 const logger = require('../utils/logger');
 const { sendEventNotification } = require('../services/notificationService');
 const { wasCreatedFromDiscord } = require('../services/eventManager');
+const { postAnnouncement, postSprintChange } = require('../services/bifrostUpdates');
 
 // How long to wait before announcing, so /schedule can claim its own events
 const DISCORD_CLAIM_DELAY_MS = 5000;
@@ -83,6 +84,47 @@ function createWebhookRouter(client) {
       logger.error('❌ Webhook error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
+  });
+
+  /**
+   * POST /api/webhooks/announcements
+   * Receives announcements INSERT notifications from Supabase
+   */
+  router.post('/announcements', authenticateWebhook, (req, res) => {
+    const { type, table, record } = req.body;
+
+    if (type !== 'INSERT' || table !== 'announcements' || !record) {
+      logger.warn(`Unexpected webhook: ${type} on ${table}`);
+      return res.status(400).json({ error: 'Invalid webhook type' });
+    }
+
+    res.json({ status: 'processing', announcement_id: record.id });
+
+    postAnnouncement(client, record)
+      .then(messages => logger.info(`✅ Posted announcement "${record.title}" to ${messages.length} server(s)`))
+      .catch(error => logger.error(`❌ Failed to post announcement "${record.title}":`, error));
+  });
+
+  /**
+   * POST /api/webhooks/sprints
+   * Receives sprints INSERT/UPDATE notifications from Supabase and posts
+   * when a sprint starts or completes
+   */
+  router.post('/sprints', authenticateWebhook, (req, res) => {
+    const { type, table, record, old_record: previous } = req.body;
+
+    if (!['INSERT', 'UPDATE'].includes(type) || table !== 'sprints' || !record) {
+      logger.warn(`Unexpected webhook: ${type} on ${table}`);
+      return res.status(400).json({ error: 'Invalid webhook type' });
+    }
+
+    res.json({ status: 'processing', sprint_id: record.id });
+
+    postSprintChange(client, record, previous || null)
+      .then(messages => {
+        if (messages.length > 0) logger.info(`✅ Posted sprint "${record.name}" (${record.status}) to ${messages.length} server(s)`);
+      })
+      .catch(error => logger.error(`❌ Failed to post sprint "${record.name}":`, error));
   });
 
   // Keep old endpoint as alias for backward compatibility
