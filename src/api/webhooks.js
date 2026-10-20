@@ -1,6 +1,10 @@
 const express = require('express');
 const logger = require('../utils/logger');
 const { sendEventNotification } = require('../services/notificationService');
+const { wasCreatedFromDiscord } = require('../services/eventManager');
+
+// How long to wait before announcing, so /schedule can claim its own events
+const DISCORD_CLAIM_DELAY_MS = 5000;
 
 /**
  * Webhook routes for receiving Supabase database events
@@ -58,8 +62,16 @@ function createWebhookRouter(client) {
       // Respond immediately
       res.json({ status: 'processing', event_id: event.id });
 
-      // Send notification asynchronously
-      sendEventNotification(client, event, 'new')
+      // Send notification asynchronously. Events created with /schedule are
+      // already announced by the command itself, so skip those.
+      new Promise(resolve => setTimeout(resolve, DISCORD_CLAIM_DELAY_MS))
+        .then(() => {
+          if (wasCreatedFromDiscord(event.id)) {
+            logger.info(`⏭️ Event "${event.title}" was created from Discord — already announced`);
+            return [];
+          }
+          return sendEventNotification(client, event, 'new');
+        })
         .then((messages) => {
           logger.info(`✅ Sent ${messages.length} notification(s) for event "${event.title}"`);
         })

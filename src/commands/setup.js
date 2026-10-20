@@ -73,8 +73,8 @@ module.exports = {
         timezone: timezone,
         reminder_times: {
           meeting: [1440, 60, 15],
-          work_session: [60, 15],
-          social: [1440, 60],
+          company: [1440, 60],
+          retrospective: [60, 15],
           holiday: [1440]
         }
       });

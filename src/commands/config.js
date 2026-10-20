@@ -31,6 +31,7 @@ module.exports = {
         { name: '🏢 Organization', value: config.organization_name || `ID: ${config.organization_id}`, inline: true },
         { name: '📢 Notifications', value: `<#${config.notification_channel_id}>`, inline: true },
         { name: '🌍 Timezone', value: config.timezone || 'America/New_York', inline: true },
+        { name: '📝 Report Board', value: config.report_project_name || 'First project (set with /reports)', inline: true },
         {
           name: '⏰ Meeting Reminders',
           value: config.reminder_times?.meeting?.map(m => formatMinutes(m)).join(', ') || '24h, 1h, 15m',

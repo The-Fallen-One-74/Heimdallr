@@ -1,6 +1,8 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { isGuildConfigured } = require('../../services/configManager');
+const { isGuildConfigured, getGuildConfig } = require('../../services/configManager');
 const { updateEvent, getUpcomingEvents } = require('../../services/eventManager');
+const { discordTimestamp, toUnixTimestamp } = require('../../utils/embeds');
+const { parseTime12h, localToUtc } = require('../../utils/time');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -18,7 +20,7 @@ module.exports = {
         .setRequired(true))
     .addStringOption(option =>
       option.setName('time')
-        .setDescription('New time (e.g., 9:00 AM)')
+        .setDescription('New time in the server timezone (e.g., 9:00 AM)')
         .setRequired(true)),
 
   async execute(interaction) {
@@ -42,20 +44,17 @@ module.exports = {
       return;
     }
 
-    const timeMatch = timeStr.match(/^(0?[1-9]|1[0-2]):([0-5][0-9])\s?(AM|PM|am|pm)$/);
-    if (!timeMatch) {
+    const time24 = parseTime12h(timeStr);
+    if (!time24) {
       await interaction.editReply({
         embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Invalid Time').setDescription('Use format like `9:00 AM`')]
       });
       return;
     }
 
-    let hours = parseInt(timeMatch[1]);
-    const minutes = timeMatch[2];
-    const period = timeMatch[3].toUpperCase();
-    if (period === 'PM' && hours !== 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
-    const time24 = `${hours.toString().padStart(2, '0')}:${minutes}`;
+    // Times are entered in the server's timezone; Bifröst stores UTC
+    const config = getGuildConfig(interaction.guildId);
+    const utc = localToUtc(dateStr, time24, config.timezone || 'America/New_York');
 
     try {
       const events = await getUpcomingEvents(interaction.guildId, 60);
@@ -68,22 +67,19 @@ module.exports = {
         return;
       }
 
-      const oldDate = new Date(meeting.event_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+      const oldUnix = toUnixTimestamp(meeting.event_date, meeting.event_time);
 
-      await updateEvent(interaction.guildId, eventId, {
-        event_date: dateStr,
-        event_time: time24
-      });
+      await updateEvent(interaction.guildId, eventId, utc);
 
-      const newDate = new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+      const newUnix = toUnixTimestamp(utc.event_date, utc.event_time);
 
       const embed = new EmbedBuilder()
         .setColor(0x00FF00)
         .setTitle('✅ Meeting Rescheduled')
         .setDescription(`**${meeting.title}**`)
         .addFields(
-          { name: '📅 Old Date', value: oldDate, inline: true },
-          { name: '📅 New Date', value: `${newDate} at ${timeStr}`, inline: true }
+          { name: '📅 Old Time', value: discordTimestamp(oldUnix, 'F'), inline: true },
+          { name: '📅 New Time', value: `${discordTimestamp(newUnix, 'F')}\n${discordTimestamp(newUnix, 'R')}`, inline: true }
         )
         .setFooter({ text: `Rescheduled by ${interaction.user.tag}` })
         .setTimestamp();
