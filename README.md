@@ -78,7 +78,7 @@ In Bifröst, **Org Settings → Discord → Connect Discord** shows a one-time c
 
 Bifröst checks the code and records the link, and `/bug`, `/feature` and `/reports` go through that link. Running `/setup` again without a code only changes the channel, timezone and Discord Events setting.
 
-Until link codes ship in Bifröst, `/setup organization_id:<id>` still works. It links by ID alone, so treat it as a stopgap for testing. The Bifröst side is drafted in [`docs/bifrost/20261020_discord_link_step1.sql`](docs/bifrost/20261020_discord_link_step1.sql) and is not applied yet.
+Servers set up earlier with an organization ID need `/setup` again with a code. The Bifröst side is drafted in [`docs/bifrost/20261020_discord_link_step1.sql`](docs/bifrost/20261020_discord_link_step1.sql) and is not applied yet, so linking works only once that ships.
 
 ### Webhooks
 

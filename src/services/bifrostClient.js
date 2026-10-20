@@ -50,33 +50,8 @@ async function testBifrostConnection() {
   }
 }
 
-/**
- * Verify an organization exists
- * @param {number} orgId - Organization ID
- * @returns {Promise<Object|null>} Organization data or null
- */
-async function verifyOrganization(orgId) {
-  try {
-    const client = getBifrostClient();
-    if (!client) return null;
-
-    const { data, error } = await client
-      .from('organizations')
-      .select('id, name')
-      .eq('id', orgId)
-      .single();
-
-    if (error) return null;
-    return data;
-  } catch (error) {
-    logger.error(`Failed to verify organization ${orgId}:`, error);
-    return null;
-  }
-}
-
 module.exports = {
   initBifrostClient,
   getBifrostClient,
-  testBifrostConnection,
-  verifyOrganization
+  testBifrostConnection
 };

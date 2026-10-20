@@ -59,14 +59,12 @@ module.exports = {
         return;
       }
 
-      // Code-linked servers report through Bifröst, which keeps the board choice
-      if (config.connection_id) {
-        const { error } = await getBifrostClient().rpc('discord_set_report_project', {
-          p_connection_id: config.connection_id,
-          p_project_id: project.id
-        });
-        if (error) throw error;
-      }
+      // Reports go through Bifröst, which keeps the board choice
+      const { error } = await getBifrostClient().rpc('discord_set_report_project', {
+        p_connection_id: config.connection_id,
+        p_project_id: project.id
+      });
+      if (error) throw error;
 
       saveGuildConfig(interaction.guildId, {
         report_project_id: project.id,
