@@ -1,21 +1,35 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { saveGuildConfig } = require('../services/configManager');
-const { verifyOrganization } = require('../services/bifrostClient');
+const { getGuildConfig, saveGuildConfig } = require('../services/configManager');
+const { redeemLinkCode } = require('../services/discordLink');
 const logger = require('../utils/logger');
+
+const DEFAULT_REMINDER_TIMES = {
+  meeting: [1440, 60, 15],
+  company: [1440, 60],
+  retrospective: [60, 15],
+  holiday: [1440]
+};
+
+const REDEEM_ERRORS = {
+  invalid_code: 'That code is invalid, expired or already used. Create a new one in Bifröst **Org Settings → Discord**.',
+  rate_limited: 'Too many tries. Wait 10 minutes, then create a new code.',
+  not_available: 'Link codes aren\'t turned on in Bifröst yet.',
+  failed: 'Could not reach Bifröst. Try again in a minute.'
+};
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('setup')
-    .setDescription('Configure Heimdallr for your server (Admin only)')
+    .setDescription('Connect Heimdallr to your Bifröst organization (Admin only)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addIntegerOption(option =>
-      option.setName('organization_id')
-        .setDescription('Your Bifröst organization ID')
-        .setRequired(true))
     .addChannelOption(option =>
       option.setName('notification_channel')
         .setDescription('Channel for event notifications')
         .setRequired(true))
+    .addStringOption(option =>
+      option.setName('code')
+        .setDescription('Link code from Bifröst Org Settings → Discord, e.g. BFR-7K2Q-M9XD')
+        .setRequired(false))
     .addStringOption(option =>
       option.setName('timezone')
         .setDescription('Your timezone')
@@ -44,69 +58,79 @@ module.exports = {
   async execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
 
-    const orgId = interaction.options.getInteger('organization_id');
+    const code = interaction.options.getString('code');
     const notificationChannel = interaction.options.getChannel('notification_channel');
-    const timezone = interaction.options.getString('timezone') || 'America/New_York';
-    const discordEvents = interaction.options.getBoolean('discord_events') ?? true;
+    const existing = getGuildConfig(interaction.guildId);
+    const timezone = interaction.options.getString('timezone') || existing?.timezone || 'America/New_York';
+    const discordEvents = interaction.options.getBoolean('discord_events') ?? existing?.discord_events ?? true;
 
-    // Verify the organization exists
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle('🔧 Setting up Heimdallr...')
-      .setDescription('Verifying your Bifröst organization...');
+      .setDescription('Connecting to Bifröst...');
 
     await interaction.editReply({ embeds: [embed] });
 
-    const org = await verifyOrganization(orgId);
-
-    if (!org) {
-      embed
-        .setColor(0xFF0000)
-        .setTitle('❌ Setup Failed')
-        .setDescription(`Could not find organization with ID \`${orgId}\`. Check your Bifröst organization settings.`);
-
+    const fail = async description => {
+      embed.setColor(0xFF0000).setTitle('❌ Setup Failed').setDescription(description);
       await interaction.editReply({ embeds: [embed] });
+    };
+
+    // Without a code, /setup only updates the channel, timezone and events of a linked server
+    if (!code && !existing?.connection_id) {
+      await fail('Add the `code` from Bifröst **Org Settings → Discord** to link this server.');
       return;
     }
 
-    // Save configuration
-    try {
-      saveGuildConfig(interaction.guildId, {
-        organization_id: orgId,
-        organization_name: org.name,
-        notification_channel_id: notificationChannel.id,
-        timezone: timezone,
-        discord_events: discordEvents,
-        reminder_times: {
-          meeting: [1440, 60, 15],
-          company: [1440, 60],
-          retrospective: [60, 15],
-          holiday: [1440]
-        }
+    let link;
+    if (code) {
+      const result = await redeemLinkCode({
+        code,
+        guild: interaction.guild,
+        discordUserId: interaction.user.id,
+        notificationChannelId: notificationChannel.id,
+        timezone
       });
 
+      if (!result.ok) {
+        await fail(REDEEM_ERRORS[result.error] || REDEEM_ERRORS.failed);
+        return;
+      }
+
+      link = {
+        connection_id: result.connection_id,
+        organization_id: result.organization_id,
+        organization_name: result.organization_name
+      };
+    }
+
+    try {
+      saveGuildConfig(interaction.guildId, {
+        ...link,
+        notification_channel_id: notificationChannel.id,
+        timezone,
+        discord_events: discordEvents,
+        reminder_times: existing?.reminder_times || DEFAULT_REMINDER_TIMES
+      });
+
+      const config = getGuildConfig(interaction.guildId);
       embed
         .setColor(0x00FF00)
         .setTitle('✅ Setup Complete!')
-        .setDescription(`Heimdallr is now watching over **${org.name}**!`)
+        .setDescription(`Heimdallr is now watching over **${config.organization_name}**!`)
         .addFields(
-          { name: '🏢 Organization', value: org.name, inline: true },
+          { name: '🏢 Organization', value: config.organization_name, inline: true },
           { name: '📢 Notifications', value: `<#${notificationChannel.id}>`, inline: true },
           { name: '🌍 Timezone', value: timezone, inline: true },
           { name: '🗓️ Discord Events', value: discordEvents ? 'On' : 'Off', inline: true }
         )
-        .setFooter({ text: 'Use /config to view or update settings' });
+        .setFooter({ text: 'Use /config to view settings' });
 
       await interaction.editReply({ embeds: [embed] });
-      logger.info(`Guild ${interaction.guildId} linked to org "${org.name}" (${orgId})`);
+      logger.info(`Guild ${interaction.guildId} linked to org "${config.organization_name}" (${config.organization_id}) via connection ${config.connection_id}`);
     } catch (error) {
       logger.error('Setup failed:', error);
-      embed
-        .setColor(0xFF0000)
-        .setTitle('❌ Setup Failed')
-        .setDescription('An error occurred while saving your configuration.');
-
-      await interaction.editReply({ embeds: [embed] });
+      await fail('An error occurred while saving your configuration.');
     }
   },
 };

@@ -20,37 +20,38 @@ async function listProjects(orgId) {
 }
 
 /**
- * Get the project that /bug and /feature reports go to.
- * Uses the project chosen with /reports, or the org's first project.
+ * File a /bug or /feature report on the server's report board through
+ * Bifröst's discord_submit_report, which checks the server's connection.
  * @param {Object} config - Guild configuration
- * @returns {Promise<{id: number, name: string}|null>}
+ * @param {Object} report
+ * @param {'bug'|'feature'} report.type
+ * @param {string} report.title
+ * @param {string} [report.description]
+ * @param {string} report.priority - low, medium, high or critical
+ * @param {string} [report.severity] - bugs only
+ * @param {string} [report.steps] - bugs only
+ * @param {string} report.reporterTag - Discord tag of the reporter
+ * @returns {Promise<{ id: number }>}
  */
-async function getReportProject(config) {
+async function submitReport(config, report) {
   const client = getBifrostClient();
-  if (!client) return null;
+  if (!client) throw new Error('Database connection failed.');
 
-  if (config.report_project_id) {
-    const { data } = await client
-      .from('projects')
-      .select('id, name')
-      .eq('id', config.report_project_id)
-      .eq('organization_id', config.organization_id)
-      .maybeSingle();
-
-    if (data) return data;
-  }
-
-  const { data: projects } = await client
-    .from('projects')
-    .select('id, name')
-    .eq('organization_id', config.organization_id)
-    .order('id', { ascending: true })
-    .limit(1);
-
-  return projects?.[0] || null;
+  const { data, error } = await client.rpc('discord_submit_report', {
+    p_connection_id: config.connection_id,
+    p_type: report.type,
+    p_title: report.title,
+    p_description: report.description || null,
+    p_priority: report.priority,
+    p_severity: report.severity || null,
+    p_steps: report.steps || null,
+    p_reporter_tag: report.reporterTag
+  });
+  if (error) throw error;
+  return { id: data.task_id };
 }
 
 module.exports = {
   listProjects,
-  getReportProject
+  submitReport
 };

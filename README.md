@@ -15,7 +15,7 @@ Each Discord server is linked to a Bifröst organization. Heimdallr then posts n
 - **Department roles** — `/departments` maps a Bifröst department to a Discord role, which is tagged on that department's meetings, reminders and milestones. The role must be mentionable, or the bot needs the Mention @everyone permission
 - **Daily post** — each morning, milestones due in the next 3 days and (optional) who has approved time off. Names only, never the type or reason. Configure with `/daily`
 - **RSVPs** — members react ✅ / ❌ / ❓ on event notifications; `/attendees` shows the tally
-- **Reports** — `/bug` and `/feature` create tasks on the backlog of the project chosen with `/reports`
+- **Reports** — `/bug` and `/feature` create tasks on the project chosen with `/reports`. Bugs start in the backlog and features in Submitted, tagged `discord`
 - **API** — a small HTTP API for the Bifröst desktop app to read Discord data
 
 ## Commands
@@ -25,7 +25,7 @@ Each Discord server is linked to a Bifröst organization. Heimdallr then posts n
 | `/ping` | Health check |
 | `/about` | About Heimdallr |
 | `/help` | List available commands |
-| `/setup` | **[Admin]** Link this server to a Bifröst organization, notification channel and timezone |
+| `/setup` | **[Admin]** Link this server to a Bifröst organization with a link code, and set the notification channel and timezone |
 | `/config` | **[Admin]** View the current configuration |
 | `/reminders` | **[Admin]** Set reminder times for an event type |
 | `/departments` | **[Admin]** Tag a Discord role for a Bifröst department |
@@ -67,6 +67,18 @@ For development, `npm run dev` restarts on file changes, and `npm run deploy:gui
 | `BOT_USER_ID` | No | Bifröst user recorded as the creator of meetings made with `/schedule`. Defaults to the organization's Owner |
 | `GUILD_ID` | No | Default server for `npm run deploy:guild` |
 | `LOG_LEVEL` | No | Winston log level (default `info`) |
+
+### Linking a server
+
+In Bifröst, **Org Settings → Discord → Connect Discord** shows a one-time code such as `BFR-7K2Q-M9XD`. A server admin then runs:
+
+```
+/setup notification_channel:#announcements code:BFR-7K2Q-M9XD timezone:Eastern
+```
+
+Bifröst checks the code and records the link, and `/bug`, `/feature` and `/reports` go through that link. Running `/setup` again without a code only changes the channel, timezone and Discord Events setting.
+
+Servers set up earlier with an organization ID need `/setup` again with a code. The Bifröst side is drafted in [`docs/bifrost/20261020_discord_link_step1.sql`](docs/bifrost/20261020_discord_link_step1.sql) and is not applied yet, so linking works only once that ships.
 
 ### Webhooks
 

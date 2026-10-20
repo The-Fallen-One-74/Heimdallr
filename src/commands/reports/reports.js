@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { isGuildConfigured, getGuildConfig, saveGuildConfig } = require('../../services/configManager');
 const { listProjects } = require('../../services/reportBoard');
+const { getBifrostClient } = require('../../services/bifrostClient');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -57,6 +58,13 @@ module.exports = {
         });
         return;
       }
+
+      // Reports go through Bifröst, which keeps the board choice
+      const { error } = await getBifrostClient().rpc('discord_set_report_project', {
+        p_connection_id: config.connection_id,
+        p_project_id: project.id
+      });
+      if (error) throw error;
 
       saveGuildConfig(interaction.guildId, {
         report_project_id: project.id,

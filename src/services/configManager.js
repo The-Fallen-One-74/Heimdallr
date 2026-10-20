@@ -22,6 +22,9 @@ function loadConfigs() {
       const configs = JSON.parse(data);
       guildConfigs = new Map(Object.entries(configs));
       logger.info(`Loaded ${guildConfigs.size} guild configuration(s)`);
+
+      const unlinked = [...guildConfigs.values()].filter(c => !isLinked(c)).length;
+      if (unlinked) logger.warn(`${unlinked} server(s) were set up by organization ID and need /setup with a link code`);
     }
   } catch (error) {
     logger.error('Failed to load guild configs:', error);
@@ -52,7 +55,16 @@ function saveConfigs() {
  * @returns {Object|null} Guild configuration
  */
 function getGuildConfig(guildId) {
-  return guildConfigs.get(guildId) || null;
+  const config = guildConfigs.get(guildId);
+  return isLinked(config) ? config : null;
+}
+
+/**
+ * Servers count as linked only once they redeemed a Bifröst link code.
+ * Older configs saved with a typed organization ID are ignored until re-linked.
+ */
+function isLinked(config) {
+  return Boolean(config?.connection_id && config.organization_id != null);
 }
 
 /**
@@ -81,8 +93,7 @@ function saveGuildConfig(guildId, config) {
  * @returns {boolean}
  */
 function isGuildConfigured(guildId) {
-  const config = getGuildConfig(guildId);
-  return config !== null && config.organization_id != null;
+  return getGuildConfig(guildId) !== null;
 }
 
 /**
@@ -93,7 +104,7 @@ function isGuildConfigured(guildId) {
 function getGuildsByOrganization(orgId) {
   const guilds = [];
   for (const [guildId, config] of guildConfigs) {
-    if (config.organization_id === orgId) {
+    if (isLinked(config) && config.organization_id === orgId) {
       guilds.push(guildId);
     }
   }
