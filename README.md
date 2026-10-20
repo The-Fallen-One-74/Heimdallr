@@ -34,7 +34,7 @@ Each Discord server is linked to a Bifröst organization. Heimdallr then posts n
 
 ## Getting Started
 
-Requires Node.js 18 or newer.
+Requires Node.js 20 or newer.
 
 ```bash
 npm install

@@ -7,7 +7,7 @@ This guide will help you deploy Heimdallr on your Raspberry Pi to run 24/7.
 - Raspberry Pi (any model with network connectivity)
 - Raspberry Pi OS installed
 - SSH access to your Pi
-- Node.js 16+ installed on your Pi
+- Node.js 20+ installed on your Pi
 
 ## Step 1: Install Node.js (if not already installed)
 
@@ -17,8 +17,8 @@ SSH into your Raspberry Pi and run:
 # Check if Node.js is installed
 node --version
 
-# If not installed or version is below 16, install Node.js 18:
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+# If not installed or version is below 20, install Node.js 20:
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
 # Verify installation
@@ -262,7 +262,7 @@ journalctl -u heimdallr -f
 ### Bot won't start:
 ```bash
 # Check Node.js version
-node --version  # Should be 16+
+node --version  # Should be 20+
 
 # Check for errors
 npm start
