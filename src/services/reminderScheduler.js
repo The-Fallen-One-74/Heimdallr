@@ -3,8 +3,8 @@ const { getGuildConfig } = require('./configManager');
 const { getUpcomingEvents } = require('./eventManager');
 const { createEventEmbed } = require('../utils/embeds');
 const { hasBeenSent, markAsSent } = require('./reminderTracker');
-const { getMessageForEvent } = require('./eventMessageMap');
-const { getRSVPStats } = require('./rsvpTracker');
+const { getAttendeeIds, getSignups } = require('./signups');
+const { wantsSignups, buildSignupRow } = require('../utils/signupButtons');
 const { getInterestedUserIds } = require('./discordEvents');
 const { getDepartmentRoleMention } = require('./departmentRoles');
 const logger = require('../utils/logger');
@@ -112,15 +112,13 @@ async function sendReminder(guildId, config, event, minutesUntil) {
     embed.setDescription(`Starting ${require('../utils/embeds').discordTimestamp(unix, 'R')}!`);
     embed.setColor(0xFF9900);
 
-    // Mention users who reacted ✅ to the original message or marked the
-    // Discord event Interested
+    // Mention members who signed up (Join or Maybe) or marked the Discord
+    // event Interested
     let content = '';
-    const attendeeIds = new Set(await getInterestedUserIds(guild, event.id));
-    const msgInfo = getMessageForEvent(event.id);
-    if (msgInfo) {
-      const stats = getRSVPStats(msgInfo.messageId);
-      stats.users.filter(u => u.reaction === '✅').forEach(u => attendeeIds.add(u.userId));
-    }
+    const attendeeIds = new Set([
+      ...getAttendeeIds(guildId, event.id),
+      ...await getInterestedUserIds(guild, event.id)
+    ]);
     const mentions = [...attendeeIds].map(id => `<@${id}>`);
     const roleMention = getDepartmentRoleMention(guildId, event.department_id);
     if (roleMention) mentions.unshift(roleMention);
@@ -129,17 +127,11 @@ async function sendReminder(guildId, config, event, minutesUntil) {
       logger.info(`Mentioning ${attendeeIds.size} attendee(s)${roleMention ? ' and a department role' : ''} for "${event.title}"`);
     }
 
-    const message = await channel.send({
+    await channel.send({
       content: content || undefined,
-      embeds: [embed]
+      embeds: [embed],
+      components: wantsSignups(event) ? [buildSignupRow(event.id, getSignups(guildId, event.id))] : []
     });
-
-    // Add RSVP reactions for meetings
-    if (event.type === 'meeting') {
-      await message.react('✅');
-      await message.react('❌');
-      await message.react('❓');
-    }
 
     logger.info(`Sent reminder for "${event.title}" in guild ${guildId} (${timeText})`);
   } catch (error) {

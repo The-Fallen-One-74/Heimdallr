@@ -1,8 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+const { STATE_DIR } = require('../utils/jsonStore');
 
-const CONFIG_DIR = path.join(__dirname, '../../config');
+const CONFIG_DIR = STATE_DIR;
 const CONFIG_FILE = path.join(CONFIG_DIR, 'guilds.json');
 
 // In-memory cache of guild configurations

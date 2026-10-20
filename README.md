@@ -2,7 +2,7 @@
 
 A Discord bot inspired by Heimdallr, the Norse God who watches over all 9 realms. This bot connects Discord servers to their existing Bifröst project management instances.
 
-Each Discord server is linked to a Bifröst organization. Heimdallr then posts new calendar events to a notification channel, sends reminders before they start, tracks RSVPs through reactions, and lets members file bugs and feature requests straight into Bifröst.
+Each Discord server is linked to a Bifröst organization. Heimdallr then posts new calendar events to a notification channel, sends reminders before they start, collects sign-ups with buttons, and lets members file bugs and feature requests straight into Bifröst.
 
 ## Features
 
@@ -14,7 +14,7 @@ Each Discord server is linked to a Bifröst organization. Heimdallr then posts n
 - **Sprint updates** — a post when a sprint starts (goal, dates, task count) and when it completes (done vs. not finished)
 - **Department roles** — `/departments` maps a Bifröst department to a Discord role, which is tagged on that department's meetings, reminders and milestones. The role must be mentionable, or the bot needs the Mention @everyone permission
 - **Daily post** — each morning, milestones due in the next 3 days and (optional) who has approved time off. Names only, never the type or reason. Configure with `/daily`
-- **RSVPs** — members react ✅ / ❌ / ❓ on event notifications; `/attendees` shows the tally
+- **Sign-ups** — event posts and reminders have Join, Maybe and Can't buttons. Reminders tag everyone who chose Join or Maybe, and `/attendees` lists the answers. Holidays have no buttons
 - **Reports** — `/bug` and `/feature` create tasks on the project chosen with `/reports`. Bugs start in the backlog and features in Submitted, tagged `discord`
 - **API** — a small HTTP API for the Bifröst desktop app to read Discord data
 
@@ -35,7 +35,7 @@ Each Discord server is linked to a Bifröst organization. Heimdallr then posts n
 | `/reschedule` | Change a meeting's date or time |
 | `/cancel` | Cancel a meeting |
 | `/meetings` | List upcoming meetings |
-| `/attendees` | View RSVPs for a meeting notification |
+| `/attendees` | See who signed up for an event |
 | `/bug` | Report a bug in Bifröst |
 | `/feature` | Submit a feature request |
 
@@ -94,7 +94,7 @@ The legacy `/api/webhooks/team-events` path is still accepted.
 
 ### Local state
 
-Server configuration, sent reminders, event-to-message links and Discord event links are stored as JSON files under `config/` (git-ignored). Back this folder up when moving the bot to a new host. RSVPs are currently kept in memory only and reset when the bot restarts.
+Server configuration, sent reminders, sign-ups and Discord event links are stored as JSON files under `config/` (git-ignored), or under `HEIMDALLR_STATE_DIR` when set. Back this folder up when moving the bot to a new host.
 
 ## Deployment
 
@@ -108,7 +108,8 @@ src/
   index.js            Bot entry point
   commands/           Slash commands (meetings/, reports/)
   events/             Discord event handlers (reactions, interactions)
-  services/           Bifröst client, config, events, reminders, RSVPs
+  services/           Bifröst client, config, events, reminders, sign-ups
+  interactions/       Button handlers
   api/                Express API server and webhooks
   utils/              Logger and embed helpers
 ```
