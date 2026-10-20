@@ -1,6 +1,7 @@
 const { createEventEmbed } = require('../utils/embeds');
 const { getGuildConfig, getGuildsByOrganization } = require('./configManager');
 const { createDiscordEvent } = require('./discordEvents');
+const { getDepartmentRoleMention } = require('./departmentRoles');
 const logger = require('../utils/logger');
 
 /**
@@ -36,6 +37,22 @@ async function sendNotification(client, guildId, { embeds, content } = {}) {
     logger.error(`Failed to send notification to guild ${guildId}:`, error);
     return null;
   }
+}
+
+/**
+ * Send a message to every guild linked to an organization
+ * @param {Client} client - Discord client
+ * @param {number} orgId - Bifröst organization ID
+ * @param {Function} buildMessage - (guildId) => { embeds, content }
+ * @returns {Promise<Message[]>}
+ */
+async function sendToOrganization(client, orgId, buildMessage) {
+  const messages = [];
+  for (const guildId of getGuildsByOrganization(orgId)) {
+    const msg = await sendNotification(client, guildId, buildMessage(guildId));
+    if (msg) messages.push(msg);
+  }
+  return messages;
 }
 
 /**
@@ -78,7 +95,8 @@ async function sendEventNotification(client, event, type = 'new') {
 
   const messages = [];
   for (const guildId of guildIds) {
-    const msg = await sendNotification(client, guildId, { embeds: [embed] });
+    const content = getDepartmentRoleMention(guildId, event.department_id);
+    const msg = await sendNotification(client, guildId, { embeds: [embed], content });
     if (msg) {
       // Add RSVP reactions for meetings
       if (event.type === 'meeting') {
@@ -132,6 +150,7 @@ async function sendNotificationWithRetry(client, event, maxRetries = 3) {
 
 module.exports = {
   sendNotification,
+  sendToOrganization,
   sendEventNotification,
   sendNotificationWithRetry
 };

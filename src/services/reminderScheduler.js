@@ -6,6 +6,7 @@ const { hasBeenSent, markAsSent } = require('./reminderTracker');
 const { getMessageForEvent } = require('./eventMessageMap');
 const { getRSVPStats } = require('./rsvpTracker');
 const { getInterestedUserIds } = require('./discordEvents');
+const { getDepartmentRoleMention } = require('./departmentRoles');
 const logger = require('../utils/logger');
 
 let client = null;
@@ -120,9 +121,12 @@ async function sendReminder(guildId, config, event, minutesUntil) {
       const stats = getRSVPStats(msgInfo.messageId);
       stats.users.filter(u => u.reaction === '✅').forEach(u => attendeeIds.add(u.userId));
     }
-    if (attendeeIds.size > 0) {
-      content = [...attendeeIds].map(id => `<@${id}>`).join(' ');
-      logger.info(`Mentioning ${attendeeIds.size} attendee(s) for "${event.title}"`);
+    const mentions = [...attendeeIds].map(id => `<@${id}>`);
+    const roleMention = getDepartmentRoleMention(guildId, event.department_id);
+    if (roleMention) mentions.unshift(roleMention);
+    if (mentions.length > 0) {
+      content = mentions.join(' ');
+      logger.info(`Mentioning ${attendeeIds.size} attendee(s)${roleMention ? ' and a department role' : ''} for "${event.title}"`);
     }
 
     const message = await channel.send({

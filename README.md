@@ -10,6 +10,10 @@ Each Discord server is linked to a Bifröst organization. Heimdallr then posts n
 - **Notifications** — new calendar events are announced in the configured channel (via Supabase webhook)
 - **Reminders** — configurable reminders per event type (meeting, company, retrospective, holiday, other)
 - **Discord Events** — timed meetings also appear in the server's Events tab, and members who click Interested are tagged in reminders. Needs the bot's Manage Events permission; turn off with `/setup discord_events:false`
+- **Announcements** — Bifröst announcements are posted to the notification channel (via Supabase webhook)
+- **Sprint updates** — a post when a sprint starts (goal, dates, task count) and when it completes (done vs. not finished)
+- **Department roles** — `/departments` maps a Bifröst department to a Discord role, which is tagged on that department's meetings, reminders and milestones. The role must be mentionable, or the bot needs the Mention @everyone permission
+- **Daily post** — each morning, milestones due in the next 3 days and (optional) who has approved time off. Names only, never the type or reason. Configure with `/daily`
 - **RSVPs** — members react ✅ / ❌ / ❓ on event notifications; `/attendees` shows the tally
 - **Reports** — `/bug` and `/feature` create tasks on the backlog of the project chosen with `/reports`
 - **API** — a small HTTP API for the Bifröst desktop app to read Discord data
@@ -24,6 +28,8 @@ Each Discord server is linked to a Bifröst organization. Heimdallr then posts n
 | `/setup` | **[Admin]** Link this server to a Bifröst organization, notification channel and timezone |
 | `/config` | **[Admin]** View the current configuration |
 | `/reminders` | **[Admin]** Set reminder times for an event type |
+| `/departments` | **[Admin]** Tag a Discord role for a Bifröst department |
+| `/daily` | **[Admin]** Configure the daily post (hour, out today, milestones, preview) |
 | `/reports` | **[Admin]** Choose the Bifröst project that receives `/bug` and `/feature` reports |
 | `/schedule` | Schedule a meeting |
 | `/reschedule` | Change a meeting's date or time |
@@ -64,12 +70,13 @@ For development, `npm run dev` restarts on file changes, and `npm run deploy:gui
 
 ### Webhooks
 
-To announce new events, add a Supabase database webhook on `calendar_events` INSERT that posts to:
+Add Supabase database webhooks that post to the bot with header `x-webhook-secret: <WEBHOOK_SECRET>`:
 
-```
-POST https://<your-host>/api/webhooks/calendar-events
-x-webhook-secret: <WEBHOOK_SECRET>
-```
+| Table | Events | URL |
+| --- | --- | --- |
+| `calendar_events` | INSERT | `https://<your-host>/api/webhooks/calendar-events` |
+| `announcements` | INSERT | `https://<your-host>/api/webhooks/announcements` |
+| `sprints` | INSERT, UPDATE | `https://<your-host>/api/webhooks/sprints` |
 
 The legacy `/api/webhooks/team-events` path is still accepted.
 
