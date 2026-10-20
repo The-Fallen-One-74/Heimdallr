@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { isGuildConfigured } = require('../../services/configManager');
 const { deleteEvent, getUpcomingEvents } = require('../../services/eventManager');
+const { deleteDiscordEvent } = require('../../services/discordEvents');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -37,6 +38,7 @@ module.exports = {
       }
 
       await deleteEvent(interaction.guildId, eventId);
+      await deleteDiscordEvent(interaction.guild, eventId);
 
       const embed = new EmbedBuilder()
         .setColor(0x00FF00)

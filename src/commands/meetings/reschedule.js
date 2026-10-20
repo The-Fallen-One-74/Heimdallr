@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { isGuildConfigured, getGuildConfig } = require('../../services/configManager');
 const { updateEvent, getUpcomingEvents } = require('../../services/eventManager');
+const { updateDiscordEvent } = require('../../services/discordEvents');
 const { discordTimestamp, toUnixTimestamp } = require('../../utils/embeds');
 const { parseTime12h, localToUtc } = require('../../utils/time');
 const logger = require('../../utils/logger');
@@ -70,6 +71,7 @@ module.exports = {
       const oldUnix = toUnixTimestamp(meeting.event_date, meeting.event_time);
 
       await updateEvent(interaction.guildId, eventId, utc);
+      await updateDiscordEvent(interaction.guild, { ...meeting, ...utc });
 
       const newUnix = toUnixTimestamp(utc.event_date, utc.event_time);
 

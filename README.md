@@ -9,6 +9,7 @@ Each Discord server is linked to a Bifröst organization. Heimdallr then posts n
 - **Meetings** — schedule, reschedule, cancel and list Bifröst calendar events from Discord. Times are entered in the server timezone set in `/setup` and shown to each member in their own timezone
 - **Notifications** — new calendar events are announced in the configured channel (via Supabase webhook)
 - **Reminders** — configurable reminders per event type (meeting, company, retrospective, holiday, other)
+- **Discord Events** — timed meetings also appear in the server's Events tab, and members who click Interested are tagged in reminders. Needs the bot's Manage Events permission; turn off with `/setup discord_events:false`
 - **RSVPs** — members react ✅ / ❌ / ❓ on event notifications; `/attendees` shows the tally
 - **Reports** — `/bug` and `/feature` create tasks on the backlog of the project chosen with `/reports`
 - **API** — a small HTTP API for the Bifröst desktop app to read Discord data
@@ -74,7 +75,7 @@ The legacy `/api/webhooks/team-events` path is still accepted.
 
 ### Local state
 
-Server configuration, sent reminders and event-to-message links are stored as JSON files under `config/` (git-ignored). Back this folder up when moving the bot to a new host. RSVPs are currently kept in memory only and reset when the bot restarts.
+Server configuration, sent reminders, event-to-message links and Discord event links are stored as JSON files under `config/` (git-ignored). Back this folder up when moving the bot to a new host. RSVPs are currently kept in memory only and reset when the bot restarts.
 
 ## Deployment
 

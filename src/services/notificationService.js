@@ -1,5 +1,6 @@
 const { createEventEmbed } = require('../utils/embeds');
 const { getGuildConfig, getGuildsByOrganization } = require('./configManager');
+const { createDiscordEvent } = require('./discordEvents');
 const logger = require('../utils/logger');
 
 /**
@@ -88,6 +89,9 @@ async function sendEventNotification(client, event, type = 'new') {
         } catch (e) {
           logger.error(`Failed to add reactions: ${e.message}`);
         }
+      }
+      if (type === 'new') {
+        await createDiscordEvent(msg.guild, event);
       }
       messages.push(msg);
     }

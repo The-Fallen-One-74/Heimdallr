@@ -5,6 +5,7 @@ const { createEventEmbed } = require('../utils/embeds');
 const { hasBeenSent, markAsSent } = require('./reminderTracker');
 const { getMessageForEvent } = require('./eventMessageMap');
 const { getRSVPStats } = require('./rsvpTracker');
+const { getInterestedUserIds } = require('./discordEvents');
 const logger = require('../utils/logger');
 
 let client = null;
@@ -110,16 +111,18 @@ async function sendReminder(guildId, config, event, minutesUntil) {
     embed.setDescription(`Starting ${require('../utils/embeds').discordTimestamp(unix, 'R')}!`);
     embed.setColor(0xFF9900);
 
-    // Build mentions from users who reacted ✅ to the original message
+    // Mention users who reacted ✅ to the original message or marked the
+    // Discord event Interested
     let content = '';
+    const attendeeIds = new Set(await getInterestedUserIds(guild, event.id));
     const msgInfo = getMessageForEvent(event.id);
     if (msgInfo) {
       const stats = getRSVPStats(msgInfo.messageId);
-      const attending = stats.users.filter(u => u.reaction === '✅');
-      if (attending.length > 0) {
-        content = attending.map(u => `<@${u.userId}>`).join(' ');
-        logger.info(`Mentioning ${attending.length} attendee(s) for "${event.title}"`);
-      }
+      stats.users.filter(u => u.reaction === '✅').forEach(u => attendeeIds.add(u.userId));
+    }
+    if (attendeeIds.size > 0) {
+      content = [...attendeeIds].map(id => `<@${id}>`).join(' ');
+      logger.info(`Mentioning ${attendeeIds.size} attendee(s) for "${event.title}"`);
     }
 
     const message = await channel.send({
