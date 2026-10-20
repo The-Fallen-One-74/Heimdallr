@@ -165,5 +165,7 @@ function stopScheduler() {
 module.exports = {
   initScheduler,
   stopScheduler,
-  checkUpcomingEvents
+  checkUpcomingEvents,
+  getReminderTimes,
+  formatReminderTime
 };

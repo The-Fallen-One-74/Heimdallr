@@ -52,6 +52,8 @@ npm start
 
 For development, `npm run dev` restarts on file changes, and `npm run deploy:guild <guild_id>` registers commands to a single server instantly (global commands can take up to an hour to appear).
 
+`npm test` runs the automated tests with Node's built-in test runner. They use a fake Supabase client and fake Discord objects, so they need no database, bot token or network. The Bifröst SQL drafts have their own checks in [`docs/bifrost/tests`](docs/bifrost/tests).
+
 ### Environment variables
 
 | Variable | Required | Description |
@@ -112,7 +114,9 @@ src/
   services/           Bifröst client, config, events, reminders, sign-ups
   interactions/       Button handlers
   api/                Express API server and webhooks
-  utils/              Logger and embed helpers
+  utils/              Logger, embeds, time and button helpers
+test/                 Automated tests (npm test)
+docs/bifrost/         Bifröst migration drafts and the change checklist
 ```
 
 ## License
