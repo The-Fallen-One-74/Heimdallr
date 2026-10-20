@@ -72,7 +72,7 @@ The legacy `/api/webhooks/team-events` path is still accepted.
 
 ### Local state
 
-Server configuration, sent reminders and RSVPs are stored as JSON files under `config/` (git-ignored). Back this folder up when moving the bot to a new host.
+Server configuration, sent reminders and event-to-message links are stored as JSON files under `config/` (git-ignored). Back this folder up when moving the bot to a new host. RSVPs are currently kept in memory only and reset when the bot restarts.
 
 ## Deployment
 
