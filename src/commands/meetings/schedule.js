@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { isGuildConfigured, getGuildConfig } = require('../../services/configManager');
 const { createEvent } = require('../../services/eventManager');
-const { linkEventToMessage } = require('../../services/eventMessageMap');
+const { buildSignupRow } = require('../../utils/signupButtons');
 const { createDiscordEvent } = require('../../services/discordEvents');
 const { discordTimestamp, toUnixTimestamp } = require('../../utils/embeds');
 const { parseTime12h, localToUtc } = require('../../utils/time');
@@ -109,17 +109,11 @@ module.exports = {
               notifEmbed.addFields({ name: '🗓️ Discord Event', value: `[Mark yourself Interested](${discordEvent.url})`, inline: true });
             }
 
-            const msg = await channel.send({
+            await channel.send({
               content: notifyRole ? `<@&${notifyRole.id}> New meeting scheduled!` : undefined,
-              embeds: [notifEmbed]
+              embeds: [notifEmbed],
+              components: [buildSignupRow(event.id)]
             });
-
-            await msg.react('✅');
-            await msg.react('❌');
-            await msg.react('❓');
-
-            // Link event to message so reminders can mention attendees
-            linkEventToMessage(event.id, msg.id, interaction.guildId, channel.id);
           }
         } catch (e) {
           logger.error('Failed to post notification:', e);

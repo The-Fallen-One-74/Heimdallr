@@ -8,8 +8,9 @@ const {
 const { getGuildConfig } = require('./configManager');
 const { combineDateTime } = require('./eventManager');
 const logger = require('../utils/logger');
+const { STATE_DIR } = require('../utils/jsonStore');
 
-const MAP_DIR = path.join(__dirname, '../../config');
+const MAP_DIR = STATE_DIR;
 const MAP_FILE = path.join(MAP_DIR, 'scheduled-events.json');
 
 // Bifröst events have no end time, so Discord events default to this length

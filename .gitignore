@@ -3,6 +3,4 @@ node_modules/
 *.log
 .DS_Store
 logs/
-config/guilds.json
-config/sent-reminders.json
-config/rsvps.json
+config/

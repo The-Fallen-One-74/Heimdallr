@@ -1,15 +1,22 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { isGuildConfigured } = require('../../services/configManager');
-const { getRSVPStats } = require('../../services/rsvpTracker');
+const { getUpcomingEvents } = require('../../services/eventManager');
+const { getSignups } = require('../../services/signups');
 const logger = require('../../utils/logger');
+
+// Discord embed field values are capped at 1024 characters
+function mentionList(userIds) {
+  const text = userIds.map(id => `<@${id}>`).join('\n');
+  return text.length <= 1024 ? text : `${text.substring(0, 1000).replace(/\n[^\n]*$/, '')}\n…`;
+}
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('attendees')
-    .setDescription('View who\'s attending a meeting')
-    .addStringOption(option =>
-      option.setName('message_id')
-        .setDescription('Message ID of the meeting notification')
+    .setDescription('See who signed up for an event')
+    .addIntegerOption(option =>
+      option.setName('event_id')
+        .setDescription('Event ID (use /meetings to see IDs)')
         .setRequired(true)),
 
   async execute(interaction) {
@@ -22,54 +29,43 @@ module.exports = {
       return;
     }
 
-    const messageId = interaction.options.getString('message_id');
+    const eventId = interaction.options.getInteger('event_id');
 
     try {
-      const stats = getRSVPStats(messageId);
+      const events = await getUpcomingEvents(interaction.guildId, 60);
+      const event = events.find(e => e.id === eventId);
+      const groups = getSignups(interaction.guildId, eventId);
+      const total = groups.going.length + groups.maybe.length + groups.not_going.length;
 
-      if (stats.total === 0) {
+      if (!event && total === 0) {
         await interaction.editReply({
-          embeds: [new EmbedBuilder().setColor(0xFF9900).setTitle('📊 No RSVPs Yet').setDescription('No one has reacted to this meeting yet.')]
+          embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Not Found').setDescription(`No upcoming event with ID \`${eventId}\`. Use \`/meetings\` to see IDs.`)]
         });
         return;
       }
 
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
-        .setTitle('📊 Meeting Attendees')
-        .setDescription(`${stats.total} response(s)`)
+        .setTitle(`📊 Sign-ups: ${event?.title || `Event #${eventId}`}`)
+        .setDescription(total ? `${total} response(s)` : 'No one has signed up yet.')
         .setTimestamp();
 
-      const attending = stats.users.filter(u => u.reaction === '✅');
-      const declined = stats.users.filter(u => u.reaction === '❌');
-      const maybe = stats.users.filter(u => u.reaction === '❓');
-
-      if (attending.length > 0) {
-        embed.addFields({
-          name: `✅ Attending (${attending.length})`,
-          value: attending.map(u => `<@${u.userId}>`).join('\n')
-        });
-      }
-
-      if (declined.length > 0) {
-        embed.addFields({
-          name: `❌ Not Attending (${declined.length})`,
-          value: declined.map(u => `<@${u.userId}>`).join('\n')
-        });
-      }
-
-      if (maybe.length > 0) {
-        embed.addFields({
-          name: `❓ Maybe (${maybe.length})`,
-          value: maybe.map(u => `<@${u.userId}>`).join('\n')
-        });
+      const sections = [
+        ['going', '✅ Joining'],
+        ['maybe', '❓ Maybe'],
+        ['not_going', '❌ Can\'t make it']
+      ];
+      for (const [status, label] of sections) {
+        if (groups[status].length) {
+          embed.addFields({ name: `${label} (${groups[status].length})`, value: mentionList(groups[status]) });
+        }
       }
 
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       logger.error('Failed to get attendees:', error);
       await interaction.editReply({
-        embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Error').setDescription('Failed to get attendees.')]
+        embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle('❌ Error').setDescription('Failed to get sign-ups.')]
       });
     }
   },

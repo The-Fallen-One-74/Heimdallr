@@ -28,13 +28,15 @@ function getDailySettings(config) {
 
 /**
  * The local date (YYYY-MM-DD) and hour in a timezone
+ * @param {string} timeZone
+ * @param {Date} [now]
  */
-function getLocalNow(timeZone) {
+function getLocalNow(timeZone, now = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone,
     hourCycle: 'h23',
     year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit'
-  }).formatToParts(new Date());
+  }).formatToParts(now);
   const get = type => parts.find(p => p.type === type).value;
   return { date: `${get('year')}-${get('month')}-${get('day')}`, hour: parseInt(get('hour')) };
 }
@@ -191,5 +193,6 @@ module.exports = {
   stopDailyDigest,
   getDailySettings,
   sendDailyPost,
-  getLocalNow
+  getLocalNow,
+  checkDailyPosts
 };

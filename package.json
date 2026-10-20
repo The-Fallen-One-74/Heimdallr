@@ -7,7 +7,8 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "deploy": "node src/deploy-commands.js",
-    "deploy:guild": "node src/deploy-commands-guild.js"
+    "deploy:guild": "node src/deploy-commands-guild.js",
+    "test": "node --test"
   },
   "keywords": [
     "discord",

@@ -1,8 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+const { STATE_DIR } = require('../utils/jsonStore');
 
-const TRACKER_DIR = path.join(__dirname, '../../config');
+const TRACKER_DIR = STATE_DIR;
 const TRACKER_FILE = path.join(TRACKER_DIR, 'sent-reminders.json');
 
 // In-memory cache of sent reminders

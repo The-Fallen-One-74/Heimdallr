@@ -2,16 +2,18 @@ const { createEventEmbed } = require('../utils/embeds');
 const { getGuildConfig, getGuildsByOrganization } = require('./configManager');
 const { createDiscordEvent } = require('./discordEvents');
 const { getDepartmentRoleMention } = require('./departmentRoles');
+const { getSignups } = require('./signups');
+const { wantsSignups, buildSignupRow } = require('../utils/signupButtons');
 const logger = require('../utils/logger');
 
 /**
  * Send a notification to a guild's notification channel
  * @param {Client} client - Discord client
  * @param {string} guildId - Guild ID
- * @param {Object} options - { embeds, content }
+ * @param {Object} options - { embeds, content, components }
  * @returns {Promise<Message|null>}
  */
-async function sendNotification(client, guildId, { embeds, content } = {}) {
+async function sendNotification(client, guildId, { embeds, content, components } = {}) {
   try {
     const config = getGuildConfig(guildId);
     if (!config || !config.notification_channel_id) {
@@ -29,7 +31,8 @@ async function sendNotification(client, guildId, { embeds, content } = {}) {
 
     const message = await channel.send({
       content: content || undefined,
-      embeds: embeds || []
+      embeds: embeds || [],
+      components: components || []
     });
     logger.info(`Sent notification to guild ${guildId}`);
     return message;
@@ -96,18 +99,9 @@ async function sendEventNotification(client, event, type = 'new') {
   const messages = [];
   for (const guildId of guildIds) {
     const content = getDepartmentRoleMention(guildId, event.department_id);
-    const msg = await sendNotification(client, guildId, { embeds: [embed], content });
+    const components = wantsSignups(event) ? [buildSignupRow(event.id, getSignups(guildId, event.id))] : [];
+    const msg = await sendNotification(client, guildId, { embeds: [embed], content, components });
     if (msg) {
-      // Add RSVP reactions for meetings
-      if (event.type === 'meeting') {
-        try {
-          await msg.react('✅');
-          await msg.react('❌');
-          await msg.react('❓');
-        } catch (e) {
-          logger.error(`Failed to add reactions: ${e.message}`);
-        }
-      }
       if (type === 'new') {
         await createDiscordEvent(msg.guild, event);
       }
