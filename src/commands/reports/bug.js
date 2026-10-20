@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { isGuildConfigured, getGuildConfig } = require('../../services/configManager');
 const { submitReport } = require('../../services/reportBoard');
+const { trackReportPost } = require('../../services/reportPosts');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -74,7 +75,18 @@ module.exports = {
         embed.addFields({ name: 'Details', value: description.substring(0, 1024) });
       }
 
-      await interaction.editReply({ embeds: [embed] });
+      const reply = await interaction.editReply({ embeds: [embed] });
+
+      // Status changes on the Bifröst board are posted as replies here
+      trackReportPost({
+        taskId: data.id,
+        guildId: interaction.guildId,
+        channelId: reply.channelId,
+        messageId: reply.id,
+        type: 'bug',
+        title,
+        reporterId: interaction.user.id
+      });
 
       // Also post to notification channel
       if (config.notification_channel_id) {

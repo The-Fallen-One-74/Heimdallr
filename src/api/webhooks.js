@@ -3,6 +3,7 @@ const logger = require('../utils/logger');
 const { sendEventNotification } = require('../services/notificationService');
 const { wasCreatedFromDiscord } = require('../services/eventManager');
 const { postAnnouncement, postSprintChange } = require('../services/bifrostUpdates');
+const { postReportStatus } = require('../services/reportPosts');
 
 // How long to wait before announcing, so /schedule can claim its own events
 const DISCORD_CLAIM_DELAY_MS = 5000;
@@ -125,6 +126,25 @@ function createWebhookRouter(client) {
         if (messages.length > 0) logger.info(`✅ Posted sprint "${record.name}" (${record.status}) to ${messages.length} server(s)`);
       })
       .catch(error => logger.error(`❌ Failed to post sprint "${record.name}":`, error));
+  });
+
+  /**
+   * POST /api/webhooks/tasks
+   * Receives tasks UPDATE notifications and replies under /bug and /feature
+   * posts when they change column
+   */
+  router.post('/tasks', authenticateWebhook, (req, res) => {
+    const { type, table, record, old_record: previous } = req.body;
+
+    if (type !== 'UPDATE' || table !== 'tasks' || !record) {
+      logger.warn(`Unexpected webhook: ${type} on ${table}`);
+      return res.status(400).json({ error: 'Invalid webhook type' });
+    }
+
+    res.json({ status: 'processing', task_id: record.id });
+
+    postReportStatus(client, record, previous || null)
+      .catch(error => logger.error(`❌ Failed to post status for task ${record.id}:`, error));
   });
 
   // Keep old endpoint as alias for backward compatibility

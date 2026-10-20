@@ -15,7 +15,7 @@ Each Discord server is linked to a Bifröst organization. Heimdallr then posts n
 - **Department roles** — `/departments` maps a Bifröst department to a Discord role, which is tagged on that department's meetings, reminders and milestones. The role must be mentionable, or the bot needs the Mention @everyone permission
 - **Daily post** — each morning, milestones due in the next 3 days and (optional) who has approved time off. Names only, never the type or reason. Configure with `/daily`
 - **Sign-ups** — event posts and reminders have Join, Maybe and Can't buttons. Reminders tag everyone who chose Join or Maybe, and `/attendees` lists the answers. Holidays have no buttons
-- **Reports** — `/bug` and `/feature` create tasks on the project chosen with `/reports`. Bugs start in the backlog and features in Submitted, tagged `discord`
+- **Reports** — `/bug` and `/feature` create tasks on the project chosen with `/reports`. Bugs start in the backlog and features in Submitted, tagged `discord`. When a report moves on the board (fixed, approved, shipped, declined and so on), the bot replies under the original post and tags the reporter
 - **API** — a small HTTP API for the Bifröst desktop app to read Discord data
 
 ## Commands
@@ -89,12 +89,13 @@ Add Supabase database webhooks that post to the bot with header `x-webhook-secre
 | `calendar_events` | INSERT | `https://<your-host>/api/webhooks/calendar-events` |
 | `announcements` | INSERT | `https://<your-host>/api/webhooks/announcements` |
 | `sprints` | INSERT, UPDATE | `https://<your-host>/api/webhooks/sprints` |
+| `tasks` | UPDATE | `https://<your-host>/api/webhooks/tasks` |
 
 The legacy `/api/webhooks/team-events` path is still accepted.
 
 ### Local state
 
-Server configuration, sent reminders, sign-ups and Discord event links are stored as JSON files under `config/` (git-ignored), or under `HEIMDALLR_STATE_DIR` when set. Back this folder up when moving the bot to a new host.
+Server configuration, sent reminders, sign-ups, report posts and Discord event links are stored as JSON files under `config/` (git-ignored), or under `HEIMDALLR_STATE_DIR` when set. Back this folder up when moving the bot to a new host.
 
 ## Deployment
 
